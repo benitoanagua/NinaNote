@@ -172,6 +172,7 @@ import { useScraper } from '@/composables/useScraper'
 
 const emit = defineEmits<{
   scraped: [url: string, content: string]
+  error: [error: Error | string]
 }>()
 
 const { scrapeText, validateUrl, checkPuterAvailability, isLoading, error } = useScraper()
@@ -205,21 +206,30 @@ const handleSubmit = async () => {
 
   const validation = validateUrl(urlInput.value)
   if (!validation.isValid) {
-    urlError.value = validation.error || 'URL no válida'
+    const errorMsg = validation.error || 'URL no válida'
+    urlError.value = errorMsg
+    emit('error', errorMsg)
     return
   }
 
   try {
+    console.log('🔗 Scraping URL:', urlInput.value)
     const content = await scrapeText(urlInput.value)
 
     if (!content || content.trim().length < 100) {
-      urlError.value = 'No se pudo extraer suficiente contenido del artículo'
+      const errorMsg = 'No se pudo extraer suficiente contenido del artículo'
+      urlError.value = errorMsg
+      emit('error', errorMsg)
       return
     }
 
+    console.log('✅ Content scraped successfully, length:', content.length)
     emit('scraped', urlInput.value, content)
   } catch (err) {
-    urlError.value = typeof err === 'string' ? err : 'Error al procesar la URL'
+    console.error('❌ Error scraping URL:', err)
+    const errorMsg = typeof err === 'string' ? err : 'Error al procesar la URL'
+    urlError.value = errorMsg
+    emit('error', errorMsg)
   }
 }
 

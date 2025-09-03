@@ -19,13 +19,47 @@ const isPuterEnvironment = detectPuterEnvironment()
 console.log('🔥 Nina Note - Starting up...')
 console.log('Environment:', isPuterEnvironment ? 'Puter.js' : 'Development')
 
+// Verificar que puter.js esté completamente cargado
+const checkPuterReady = async (): Promise<boolean> => {
+  const puter = (window as any).puter
+  if (!puter) return false
+
+  // Esperar a que las APIs críticas estén disponibles
+  const criticalApis = ['ai', 'net', 'auth']
+  for (const api of criticalApis) {
+    if (!puter[api]) {
+      console.warn(`Puter.js API ${api} not available`)
+      return false
+    }
+  }
+
+  return true
+}
+
+// Usar esta verificación en tu app
+const isPuterReady = isPuterEnvironment ? await checkPuterReady() : false
+
+console.log('Puter.js ready:', isPuterReady)
+
+// Después de detectar Puter.js, verificar autenticación
 if (isPuterEnvironment) {
   console.log('✅ Puter.js detected - Full functionality available')
-  console.log('🤖 AI Models:', (window as any).puter?.ai ? 'Available' : 'Not Available')
-  console.log('🌐 Network:', (window as any).puter?.net ? 'Available' : 'Not Available')
-} else {
-  console.log('⚠️ Development mode - Using mock data and examples')
-  console.log('💡 For full functionality, run in Puter.js environment')
+
+  // Verificar autenticación
+  try {
+    const userInfo = await (window as any).puter.auth.getUser()
+    console.log('👤 User authenticated:', userInfo.username)
+  } catch (authError) {
+    console.warn('⚠️ User not authenticated. Some features may be limited.')
+    console.log('💡 Prompting user to sign in...')
+
+    // Opcional: iniciar autenticación automáticamente
+    try {
+      await (window as any).puter.auth.signIn()
+    } catch (signInError) {
+      console.log('User cancelled authentication or error occurred')
+    }
+  }
 }
 
 const app = createApp(App)

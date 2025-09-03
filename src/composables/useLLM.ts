@@ -12,10 +12,10 @@ export const useLLM = () => {
 
   // Modelos disponibles ordenados por preferencia
   const AVAILABLE_MODELS = [
-    'claude-sonnet-4-latest',
-    'openrouter:anthropic/claude-3.5-sonnet-20240620',
     'gpt-4o-mini',
+    'claude-sonnet-4-latest',
     'openrouter:openai/gpt-4.1-mini',
+    'openrouter:anthropic/claude-3.5-sonnet-20240620',
   ]
 
   const checkPuterAvailability = (): boolean => {
@@ -52,27 +52,6 @@ export const useLLM = () => {
     error.value = null
 
     try {
-      // En desarrollo, mantener la simulación
-      if (import.meta.env.DEV && !checkPuterAvailability()) {
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-
-        const mockTweets = [
-          '🔥 La transformación digital en América Latina es imparable: 85% de empresas aceleraron digitalización desde 2020. Ya no es opción, es supervivencia en la nueva economía.',
-
-          '💡 Pero hay un gran PERO: la brecha digital golpea fuerte a las PYMES. Falta presupuesto y conocimiento técnico para acceder a tecnologías avanzadas. Un problema que frena el crecimiento.',
-
-          '🤝 La solución está clara: necesitamos políticas públicas inteligentes, programas de capacitación digital y alianzas estratégicas sector público-privado. Unidos podemos más.',
-
-          '🚀 El futuro de América Latina se define HOY: cerrar la brecha digital y convertir la tecnología en motor de crecimiento inclusivo. ¿Estamos listos para el desafío?',
-        ]
-
-        return mockTweets.map((content, index) => ({
-          id: `tweet-${index + 1}`,
-          content,
-          charCount: content.length,
-        }))
-      }
-
       // Usar puter.ai en producción
       const model = await selectBestAvailableModel()
 
@@ -94,25 +73,70 @@ ${text.slice(0, 4000)} ${text.length > 4000 ? '...' : ''}
 Formato de respuesta: devuelve SOLO los tweets, uno por línea, sin numeración ni explicaciones adicionales.
       `
 
+      console.log('🤖 Sending prompt to AI model:', model)
       const response = await (window as any).puter.ai.chat(prompt, {
         model,
         temperature: 0.8,
         max_tokens: 1000,
       })
 
-      // Extraer contenido de la respuesta
-      let content = ''
-      if (typeof response === 'string') {
-        content = response
-      } else if (response.message?.content) {
-        content = response.message.content
-      } else if (response.valueOf) {
-        content = response.valueOf()
-      } else if (response.toString) {
-        content = response.toString()
+      console.log('📨 Raw AI response:', response)
+
+      // DEBUG: Verificar la estructura completa de la respuesta
+      console.log('🔍 Response type:', typeof response)
+      console.log('🔍 Response keys:', Object.keys(response || {}))
+
+      if (response && typeof response === 'object') {
+        console.log('🔍 Response properties:')
+        for (const key in response) {
+          console.log(`   ${key}:`, typeof response[key], response[key])
+        }
       }
 
+      // Extraer contenido de la respuesta - MANERA CORRECTA
+      let content = ''
+
+      // Caso 1: Respuesta directa como string
+      if (typeof response === 'string') {
+        content = response
+      }
+      // Caso 2: Respuesta con estructura { message: { content: string } }
+      else if (response && typeof response === 'object') {
+        // Intentar diferentes estructuras comunes de respuestas de IA
+        if (response.message?.content) {
+          content = response.message.content
+        } else if (
+          response.choices &&
+          Array.isArray(response.choices) &&
+          response.choices[0]?.message?.content
+        ) {
+          // Estilo OpenAI
+          content = response.choices[0].message.content
+        } else if (response.completion) {
+          // Estilo Anthropic
+          content = response.completion
+        } else if (response.text) {
+          // Estilo simple
+          content = response.text
+        } else if (response.content) {
+          // Estilo directo
+          content = response.content
+        } else if (response.valueOf && typeof response.valueOf === 'function') {
+          // Intentar valueOf
+          const value = response.valueOf()
+          if (typeof value === 'string') {
+            content = value
+          }
+        } else if (response.toString && typeof response.toString === 'function') {
+          // Último recurso: toString
+          content = response.toString()
+        }
+      }
+
+      console.log('📝 Extracted content:', content)
+
       if (!content) {
+        console.error('❌ No content extracted from response:', response)
         throw new Error('No se recibió contenido válido del modelo de IA')
       }
 
@@ -123,6 +147,8 @@ Formato de respuesta: devuelve SOLO los tweets, uno por línea, sin numeración 
         .filter((line) => line.length > 0)
         .filter((line) => !line.match(/^\d+[\.\)\:]/)) // Remover numeración si existe
         .slice(0, 4) // Máximo 4 tweets
+
+      console.log('🐦 Processed tweets:', tweets)
 
       if (tweets.length === 0) {
         throw new Error('El modelo no generó tweets válidos')
