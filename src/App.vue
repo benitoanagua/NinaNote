@@ -1,11 +1,19 @@
 <template>
-  <div id="app" class="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-    <header class="bg-white shadow-sm border-b border-orange-200">
+  <div id="app" class="min-h-screen bg-background">
+    <!-- Header -->
+    <header class="bg-surface shadow-sm border-b border-outlineVariant sticky top-0 z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center">
-            <div class="w-10 h-10 fire-gradient rounded-lg flex items-center justify-center mr-3">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div
+              class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center mr-3 shadow-md3"
+            >
+              <svg
+                class="w-6 h-6 text-onPrimary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -14,33 +22,39 @@
                 />
               </svg>
             </div>
-            <h1 class="text-2xl font-bold text-gray-900">Nina Note</h1>
+            <h1 class="text-2xl font-semibold text-onSurface">Nina Note</h1>
           </div>
-          <nav class="flex space-x-4">
-            <router-link
-              to="/"
-              class="text-gray-600 hover:text-fire-600 px-3 py-2 rounded-md text-sm font-medium"
-            >
-              Inicio
-            </router-link>
-            <router-link
-              to="/history"
-              class="text-gray-600 hover:text-fire-600 px-3 py-2 rounded-md text-sm font-medium"
-            >
-              Historial
-            </router-link>
-          </nav>
+
+          <div class="flex items-center gap-4">
+            <nav class="flex space-x-4">
+              <router-link
+                to="/"
+                class="text-onSurfaceVariant hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Inicio
+              </router-link>
+              <router-link
+                to="/history"
+                class="text-onSurfaceVariant hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Historial
+              </router-link>
+            </nav>
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </header>
 
+    <!-- Main content -->
     <main class="flex-grow">
       <router-view />
     </main>
 
-    <footer class="bg-white border-t border-gray-200 mt-12">
+    <!-- Footer -->
+    <footer class="bg-surface border-t border-outlineVariant mt-12">
       <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <p class="text-center text-gray-500 text-sm">
+        <p class="text-center text-onSurfaceVariant text-sm">
           Nina Note - Extrae la esencia de cualquier editorial
         </p>
       </div>
@@ -51,6 +65,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useSessionStore } from '@/stores/session'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const sessionStore = useSessionStore()
 
@@ -61,24 +76,21 @@ onMounted(() => {
 </script>
 
 <style>
-.fire-gradient {
-  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
-}
-
+/* Mantener tus estilos personalizados pero adaptados a MD3 */
 .btn-primary {
-  --apply: bg-gradient-to-r from-orange-500 to-red-500 hover: from-orange-600 hover: to-red-600
-    text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform
-    hover: scale-105 focus: outline-none focus: ring-2 focus: ring-orange-500 focus: ring-offset-2
-    disabled: opacity-50 disabled: cursor-not-allowed disabled: hover: scale-100;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primaryContainer) 100%);
+  --apply: text-onPrimary font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform
+    hover: scale-105 focus: outline-none focus: ring-2 focus: ring-primary disabled: opacity-50
+    disabled: cursor-not-allowed disabled: hover: scale-100;
 }
 
 .btn-secondary {
-  --apply: bg-white border border-gray-300 hover: border-gray-400 text-gray-700 font-semibold py-2
-    px-4 rounded-lg transition-all duration-200 hover: bg-gray-50 focus: outline-none focus: ring-2
-    focus: ring-gray-500 focus: ring-offset-2 disabled: opacity-50 disabled: cursor-not-allowed;
+  --apply: bg-surfaceContainer border border-outline text-onSurface font-semibold py-2 px-4
+    rounded-lg transition-all duration-200 hover: bg-surfaceContainerHigh focus: outline-none
+    focus: ring-2 focus: ring-primary disabled: opacity-50 disabled: cursor-not-allowed;
 }
 
 .card {
-  --apply: bg-white rounded-xl shadow-lg border border-gray-100 p-6;
+  --apply: bg-surfaceContainerHigh rounded-xl shadow-md3 border border-outlineVariant p-6;
 }
 </style>

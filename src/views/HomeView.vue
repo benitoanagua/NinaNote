@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center px-4 py-12">
+  <div class="min-h-screen bg-background flex items-center justify-center p-4">
     <div class="w-full max-w-2xl">
       <UrlInput @scraped="handleScraped" />
     </div>

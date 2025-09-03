@@ -1,13 +1,13 @@
 <template>
-  <div class="min-h-screen py-12 px-4">
+  <div class="min-h-screen bg-background py-12 px-4">
     <div class="max-w-4xl mx-auto">
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Historial de Hilos</h1>
-        <p class="text-gray-600">Tus hilos generados recientemente</p>
+        <h1 class="text-3xl font-semibold text-onSurface mb-2">Historial de Hilos</h1>
+        <p class="text-onSurfaceVariant">Tus hilos generados recientemente</p>
       </div>
 
       <div v-if="sessionStore.savedThreads.length === 0" class="text-center py-12">
-        <div class="w-24 h-24 mx-auto mb-6 text-gray-300">
+        <div class="w-24 h-24 mx-auto mb-6 text-onSurfaceVariant/30">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
@@ -17,29 +17,38 @@
             />
           </svg>
         </div>
-        <p class="text-gray-500 mb-4">No hay hilos guardados todavía</p>
-        <router-link to="/" class="btn-primary"> Crear tu primer hilo </router-link>
+        <p class="text-onSurfaceVariant mb-4">No hay hilos guardados todavía</p>
+        <router-link
+          to="/"
+          class="px-6 py-2 bg-primary text-onPrimary rounded-lg shadow-md3 hover:shadow-md3-lg"
+        >
+          Crear tu primer hilo
+        </router-link>
       </div>
 
       <div v-else class="space-y-6">
-        <div v-for="thread in sessionStore.savedThreads" :key="thread.id" class="card">
+        <div
+          v-for="thread in sessionStore.savedThreads"
+          :key="thread.id"
+          class="bg-surfaceContainerHigh rounded-xl p-6 shadow-md3"
+        >
           <div class="flex items-start justify-between mb-4">
             <div class="flex-1">
-              <h3 class="font-semibold text-gray-900 mb-1">{{ thread.title }}</h3>
+              <h3 class="font-semibold text-onSurface mb-1">{{ thread.title }}</h3>
               <a
                 :href="thread.url"
                 target="_blank"
-                class="text-fire-600 hover:text-fire-700 text-sm break-all"
+                class="text-primary hover:text-primary text-sm break-all"
               >
                 {{ thread.url }}
               </a>
-              <p class="text-gray-500 text-sm mt-1">
+              <p class="text-onSurfaceVariant text-sm mt-1">
                 {{ formatDate(thread.createdAt) }}
               </p>
             </div>
             <button
               @click="deleteThread(thread.id)"
-              class="p-2 text-gray-400 hover:text-red-500 transition-colors"
+              class="p-2 text-onSurfaceVariant hover:text-error rounded-full"
               title="Eliminar hilo"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -57,17 +66,17 @@
             <div
               v-for="(tweet, index) in thread.tweets"
               :key="index"
-              class="bg-gray-50 rounded-lg p-3"
+              class="bg-surfaceContainer rounded-lg p-3"
             >
               <div class="flex items-start mb-2">
                 <div
-                  class="w-6 h-6 fire-gradient rounded-full flex items-center justify-center text-white text-xs font-semibold mr-2"
+                  class="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-onPrimary text-xs font-semibold mr-2"
                 >
                   {{ index + 1 }}
                 </div>
-                <div class="text-sm text-gray-600">{{ tweet.charCount }}/280</div>
+                <div class="text-sm text-onSurfaceVariant">{{ tweet.charCount }}/280</div>
               </div>
-              <p class="text-gray-800 text-sm leading-relaxed">
+              <p class="text-onSurface text-sm leading-relaxed">
                 {{ tweet.content }}
               </p>
             </div>

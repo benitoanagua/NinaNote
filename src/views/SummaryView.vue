@@ -1,13 +1,13 @@
 <template>
-  <div class="min-h-screen py-12 px-4">
+  <div class="min-h-screen bg-background py-8 px-4">
     <div class="max-w-4xl mx-auto">
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Resumen Generado</h1>
-        <p class="text-gray-600">Hilo de Twitter creado a partir del artículo</p>
+        <h1 class="text-3xl font-semibold text-onSurface mb-2">Resumen Generado</h1>
+        <p class="text-onSurfaceVariant">Hilo de Twitter creado a partir del artículo</p>
         <a
           :href="decodedUrl"
           target="_blank"
-          class="text-fire-600 hover:text-fire-700 text-sm break-all"
+          class="text-primary hover:text-primary text-sm break-all inline-block mt-2"
         >
           {{ decodedUrl }}
         </a>
@@ -22,8 +22,11 @@
       <TwitterPublish :tweets="tweets" class="mt-8" />
 
       <div class="mt-8 text-center">
-        <button @click="$router.push('/')" class="btn-secondary">
-          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button
+          @click="$router.push('/')"
+          class="px-6 py-2 bg-secondaryContainer text-onSecondaryContainer rounded-lg hover:bg-secondaryContainer hover:text-onSecondaryContainer"
+        >
+          <svg class="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"

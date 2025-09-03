@@ -13,9 +13,14 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
     "lint": "eslint . --fix",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "generate:theme": "tsx src/plugins/material-theme/cli.ts",
+    "postinstall": "tsx src/plugins/material-theme/cli.ts",
+    "predev": "tsx src/plugins/material-theme/cli.ts",
+    "prebuild": "tsx src/plugins/material-theme/cli.ts"
   },
   "dependencies": {
+    "@material/material-color-utilities": "^0.3.0",
     "@mozilla/readability": "^0.6.0",
     "@tailwindcss/vite": "^4.1.12",
     "pinia": "^3.0.3",
@@ -38,6 +43,7 @@
     "typescript": "~5.8.0",
     "vite": "^7.0.6",
     "vite-plugin-vue-devtools": "^8.0.0",
-    "vue-tsc": "^3.0.4"
+    "vue-tsc": "^3.0.4",
+    "tsx": "^4.19.2"
   }
 }

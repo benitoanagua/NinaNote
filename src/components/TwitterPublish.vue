@@ -1,25 +1,27 @@
 <template>
-  <div class="card mt-6">
+  <div class="bg-surfaceContainerHigh rounded-xl p-6 shadow-md3 mt-6">
     <div class="flex items-center mb-6">
-      <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
-        <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+      <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center mr-3">
+        <svg class="w-5 h-5 text-onPrimary" fill="currentColor" viewBox="0 0 24 24">
           <path
             d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
           />
         </svg>
       </div>
       <div>
-        <h2 class="text-xl font-bold text-gray-800">Publicar en Twitter</h2>
-        <p class="text-gray-600 text-sm">Comparte tu hilo directamente o cópialo al portapapeles</p>
+        <h2 class="text-xl font-semibold text-onSurface">Publicar en Twitter</h2>
+        <p class="text-onSurfaceVariant text-sm">
+          Comparte tu hilo directamente o cópialo al portapapeles
+        </p>
       </div>
     </div>
 
     <!-- Configuración de Token -->
     <div v-if="!sessionStore.hasTwitterToken() || showTokenConfig" class="mb-6">
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+      <div class="bg-primaryContainer/30 border border-primaryContainer rounded-lg p-4 mb-4">
         <div class="flex items-start">
           <svg
-            class="w-5 h-5 text-blue-500 mr-2 mt-0.5"
+            class="w-5 h-5 text-primary mr-2 mt-0.5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -32,8 +34,8 @@
             />
           </svg>
           <div>
-            <p class="text-blue-800 text-sm font-medium mb-2">Configuración de Twitter API</p>
-            <p class="text-blue-700 text-sm mb-3">
+            <p class="text-primary text-sm font-medium mb-2">Configuración de Twitter API</p>
+            <p class="text-primary text-sm mb-3">
               Para publicar directamente, necesitas un Bearer Token de la API de Twitter.
               <a
                 href="https://developer.twitter.com/en/docs/twitter-api/getting-started/getting-access-to-the-twitter-api"
@@ -49,7 +51,7 @@
 
       <div class="space-y-4">
         <div>
-          <label for="token" class="block text-sm font-medium text-gray-700 mb-2">
+          <label for="token" class="block text-sm font-medium text-onSurfaceVariant mb-2">
             Bearer Token de Twitter
           </label>
           <div class="relative">
@@ -58,14 +60,14 @@
               v-model="tokenInput"
               :type="showToken ? 'text' : 'password'"
               placeholder="AAAA..."
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none pr-24"
-              :class="{ 'border-red-300': tokenError }"
+              class="input-outlined w-full px-4 py-3 bg-surfaceContainerHighest border border-outline rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 pr-24 text-onSurface"
+              :class="{ 'border-error focus:border-error focus:ring-error/20': tokenError }"
             />
-            <div class="absolute inset-y-0 right-0 flex items-center space-x-1 pr-3">
+            <div class="absolute inset-y-0 right-0 flex items-center gap-1 pr-3">
               <button
                 type="button"
                 @click="showToken = !showToken"
-                class="p-1 text-gray-400 hover:text-gray-600"
+                class="p-1 text-onSurfaceVariant hover:text-onSurface rounded-full"
                 title="Mostrar/Ocultar token"
               >
                 <svg
@@ -99,19 +101,27 @@
               </button>
             </div>
           </div>
-          <p v-if="tokenError" class="mt-2 text-sm text-red-600">
+          <p v-if="tokenError" class="mt-2 text-sm text-error">
             {{ tokenError }}
           </p>
-          <p class="mt-2 text-xs text-gray-500">
+          <p class="mt-2 text-xs text-onSurfaceVariant">
             Tu token se guarda solo durante esta sesión y nunca se envía a nuestros servidores
           </p>
         </div>
 
-        <div class="flex space-x-3">
-          <button @click="saveToken" :disabled="!tokenInput.trim()" class="btn-primary">
+        <div class="flex gap-3">
+          <button
+            @click="saveToken"
+            :disabled="!tokenInput.trim()"
+            class="px-4 py-2 bg-primary text-onPrimary rounded-lg hover:bg-primary disabled:opacity-60"
+          >
             Guardar Token
           </button>
-          <button v-if="sessionStore.hasTwitterToken()" @click="clearToken" class="btn-secondary">
+          <button
+            v-if="sessionStore.hasTwitterToken()"
+            @click="clearToken"
+            class="px-4 py-2 bg-secondaryContainer text-onSecondaryContainer rounded-lg hover:bg-secondaryContainer"
+          >
             Limpiar Token
           </button>
         </div>
@@ -121,11 +131,11 @@
     <!-- Botones de acción -->
     <div v-else class="space-y-4">
       <!-- Información del token configurado -->
-      <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+      <div class="bg-primaryContainer/30 border border-primaryContainer rounded-lg p-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center">
             <svg
-              class="w-4 h-4 text-green-500 mr-2"
+              class="w-4 h-4 text-primary mr-2"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -137,11 +147,11 @@
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            <span class="text-green-800 text-sm font-medium">Token de Twitter configurado</span>
+            <span class="text-primary text-sm font-medium">Token de Twitter configurado</span>
           </div>
           <button
             @click="showTokenConfig = true"
-            class="text-green-700 hover:text-green-800 text-sm underline"
+            class="text-primary hover:text-primary text-sm underline"
           >
             Cambiar
           </button>
@@ -150,7 +160,11 @@
 
       <!-- Botones principales -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <button @click="publishThread" :disabled="!canPublish || isPosting" class="btn-primary">
+        <button
+          @click="publishThread"
+          :disabled="!canPublish || isPosting"
+          class="px-4 py-3 bg-primary text-onPrimary rounded-lg shadow-md3 hover:shadow-md3-lg disabled:opacity-60 disabled:pointer-events-none"
+        >
           <span v-if="!isPosting" class="flex items-center justify-center">
             <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
               <path
@@ -160,26 +174,15 @@
             Publicar Hilo
           </span>
           <span v-else class="flex items-center justify-center">
-            <svg class="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              />
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
+            <div class="animate-spin rounded-full w-5 h-5 border-b-2 border-onPrimary mr-2"></div>
             Publicando...
           </span>
         </button>
 
-        <button @click="copyToClipboard" class="btn-secondary">
+        <button
+          @click="copyToClipboard"
+          class="px-4 py-3 bg-secondaryContainer text-onSecondaryContainer rounded-lg shadow-md3 hover:shadow-md3-lg"
+        >
           <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
@@ -196,11 +199,11 @@
     <!-- Alertas de validación -->
     <div
       v-if="validationErrors.length > 0"
-      class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4"
+      class="mt-4 bg-errorContainer/30 border border-errorContainer rounded-lg p-4"
     >
       <div class="flex items-start">
         <svg
-          class="w-5 h-5 text-yellow-500 mr-2 mt-0.5"
+          class="w-5 h-5 text-error mr-2 mt-0.5"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -213,12 +216,10 @@
           />
         </svg>
         <div>
-          <p class="text-yellow-800 text-sm font-medium mb-2">
-            Antes de publicar, revisa lo siguiente:
-          </p>
-          <ul class="text-yellow-700 text-sm space-y-1">
+          <p class="text-error text-sm font-medium mb-2">Antes de publicar, revisa lo siguiente:</p>
+          <ul class="text-error text-sm space-y-1">
             <li v-for="error in validationErrors" :key="error" class="flex items-center">
-              <span class="w-1 h-1 bg-yellow-500 rounded-full mr-2"></span>
+              <span class="w-1 h-1 bg-error rounded-full mr-2"></span>
               {{ error }}
             </li>
           </ul>
@@ -227,10 +228,13 @@
     </div>
 
     <!-- Mensajes de éxito/error -->
-    <div v-if="successMessage" class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+    <div
+      v-if="successMessage"
+      class="mt-4 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-4"
+    >
       <div class="flex items-start">
         <svg
-          class="w-5 h-5 text-green-500 mr-2 mt-0.5"
+          class="w-5 h-5 text-primary mr-2 mt-0.5"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -242,14 +246,14 @@
             d="M5 13l4 4L19 7"
           />
         </svg>
-        <p class="text-green-800 text-sm">{{ successMessage }}</p>
+        <p class="text-primary text-sm">{{ successMessage }}</p>
       </div>
     </div>
 
-    <div v-if="error" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+    <div v-if="error" class="mt-4 bg-errorContainer/30 border border-errorContainer rounded-lg p-4">
       <div class="flex items-start">
         <svg
-          class="w-5 h-5 text-red-500 mr-2 mt-0.5"
+          class="w-5 h-5 text-error mr-2 mt-0.5"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -261,7 +265,7 @@
             d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
-        <p class="text-red-800 text-sm">{{ error }}</p>
+        <p class="text-error text-sm">{{ error }}</p>
       </div>
     </div>
   </div>

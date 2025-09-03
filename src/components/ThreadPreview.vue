@@ -1,9 +1,11 @@
 <template>
-  <div class="card">
+  <div class="bg-surfaceContainerHigh rounded-xl p-6 shadow-md3">
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center">
-        <div class="w-10 h-10 fire-gradient rounded-lg flex items-center justify-center mr-3">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div
+          class="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-md3 mr-3"
+        >
+          <svg class="w-6 h-6 text-onPrimary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -13,13 +15,17 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-xl font-bold text-gray-800">Tu Hilo de Twitter</h2>
-          <p class="text-gray-600 text-sm">{{ tweets.length }} tweets generados</p>
+          <h2 class="text-xl font-semibold text-onSurface">Tu Hilo de Twitter</h2>
+          <p class="text-onSurfaceVariant text-sm">{{ tweets.length }} tweets generados</p>
         </div>
       </div>
 
-      <button @click="regenerateAll" :disabled="isRegenerating" class="btn-secondary text-sm">
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <button
+        @click="regenerateAll"
+        :disabled="isRegenerating"
+        class="px-4 py-2 bg-secondaryContainer text-onSecondaryContainer rounded-lg hover:bg-secondaryContainer hover:text-onSecondaryContainer disabled:opacity-60"
+      >
+        <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -35,29 +41,33 @@
       <div
         v-for="(tweet, index) in tweets"
         :key="tweet.id"
-        class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
-        :class="{ 'border-fire-200 bg-fire-50': tweet.charCount > 280 }"
+        class="bg-surfaceContainer border border-outlineVariant rounded-xl p-4 hover:shadow-md3 transition-all duration-200"
+        :class="{ 'border-error bg-errorContainer/20': tweet.charCount > 280 }"
       >
         <!-- Header del tweet -->
         <div class="flex items-start justify-between mb-3">
           <div class="flex items-center">
             <div
-              class="w-8 h-8 fire-gradient rounded-full flex items-center justify-center text-white text-sm font-semibold mr-3"
+              class="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-onPrimary text-sm font-semibold mr-3 shadow-sm"
             >
               {{ index + 1 }}
             </div>
-            <div class="text-sm text-gray-600">
-              <span :class="{ 'text-red-600 font-semibold': tweet.charCount > 280 }">
-                {{ tweet.charCount }}/280
-              </span>
+            <div
+              class="text-sm"
+              :class="{
+                'text-error font-semibold': tweet.charCount > 280,
+                'text-onSurfaceVariant': tweet.charCount <= 280,
+              }"
+            >
+              {{ tweet.charCount }}/280
             </div>
           </div>
 
-          <div class="flex items-center space-x-2">
+          <div class="flex items-center gap-2">
             <button
               @click="regenerateTweet(index)"
               :disabled="regeneratingIndex === index"
-              class="p-1 text-gray-400 hover:text-fire-500 transition-colors duration-200"
+              class="p-2 text-onSurfaceVariant hover:text-primary rounded-full"
               title="Regenerar este tweet"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +82,7 @@
 
             <button
               @click="editTweet(index)"
-              class="p-1 text-gray-400 hover:text-blue-500 transition-colors duration-200"
+              class="p-2 text-onSurfaceVariant hover:text-primary rounded-full"
               title="Editar este tweet"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,7 +101,7 @@
         <div class="mb-3">
           <div
             v-if="editingIndex !== index"
-            class="text-gray-800 leading-relaxed whitespace-pre-wrap"
+            class="text-onSurface leading-relaxed whitespace-pre-wrap"
           >
             {{ tweet.content }}
           </div>
@@ -99,26 +109,34 @@
           <div v-else class="space-y-2">
             <textarea
               v-model="editingContent"
-              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-fire-500 focus:border-transparent outline-none resize-none"
-              :class="{ 'border-red-300': editingContent.length > 280 }"
+              class="input-outlined w-full p-3 bg-surfaceContainerHighest border border-outline rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none text-onSurface"
+              :class="{
+                'border-error focus:border-error focus:ring-error/20': editingContent.length > 280,
+              }"
               rows="3"
               placeholder="Edita tu tweet..."
             />
             <div class="flex items-center justify-between">
-              <span class="text-sm" :class="{ 'text-red-600': editingContent.length > 280 }">
+              <span
+                class="text-sm"
+                :class="{
+                  'text-error': editingContent.length > 280,
+                  'text-onSurfaceVariant': editingContent.length <= 280,
+                }"
+              >
                 {{ editingContent.length }}/280 caracteres
               </span>
-              <div class="space-x-2">
+              <div class="flex gap-2">
                 <button
                   @click="cancelEdit"
-                  class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                  class="px-3 py-1 text-sm text-onSurfaceVariant hover:text-onSurface rounded-lg"
                 >
                   Cancelar
                 </button>
                 <button
                   @click="saveEdit(index)"
                   :disabled="editingContent.length > 280"
-                  class="px-3 py-1 text-sm bg-fire-500 text-white rounded hover:bg-fire-600 transition-colors disabled:opacity-50"
+                  class="px-3 py-1 text-sm bg-primary text-onPrimary rounded-lg hover:bg-primary disabled:opacity-60"
                 >
                   Guardar
                 </button>
@@ -128,10 +146,13 @@
         </div>
 
         <!-- Alerta de exceso de caracteres -->
-        <div v-if="tweet.charCount > 280" class="bg-red-100 border border-red-200 rounded-lg p-3">
+        <div
+          v-if="tweet.charCount > 280"
+          class="bg-errorContainer/30 border border-errorContainer rounded-lg p-3"
+        >
           <div class="flex items-start">
             <svg
-              class="w-5 h-5 text-red-500 mr-2 mt-0.5"
+              class="w-5 h-5 text-error mr-2 mt-0.5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -144,60 +165,33 @@
               />
             </svg>
             <div>
-              <p class="text-red-800 text-sm font-medium">Tweet demasiado largo</p>
-              <p class="text-red-700 text-sm">
-                Excede por {{ tweet.charCount - 280 }} caracteres. Considera regenerar o editar.
-              </p>
+              <p class="text-error text-sm font-medium">Tweet demasiado largo</p>
+              <p class="text-error text-sm">Excede por {{ tweet.charCount - 280 }} caracteres</p>
             </div>
           </div>
         </div>
 
-        <!-- Indicador de carga para regeneración individual -->
+        <!-- Indicador de carga -->
         <div
           v-if="regeneratingIndex === index"
-          class="bg-fire-50 border border-fire-200 rounded-lg p-3"
+          class="bg-primaryContainer/30 border border-primaryContainer rounded-lg p-3"
         >
           <div class="flex items-center">
-            <svg class="animate-spin w-4 h-4 text-fire-500 mr-2" fill="none" viewBox="0 0 24 24">
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              />
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            <span class="text-fire-700 text-sm">Regenerando tweet...</span>
+            <div class="animate-spin rounded-full w-4 h-4 border-b-2 border-primary mr-2"></div>
+            <span class="text-primary text-sm">Regenerando tweet...</span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Estado de carga global -->
-    <div v-if="isRegenerating" class="mt-6 bg-fire-50 border border-fire-200 rounded-lg p-4">
+    <div
+      v-if="isRegenerating"
+      class="mt-6 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-4"
+    >
       <div class="flex items-center justify-center">
-        <svg class="animate-spin w-5 h-5 text-fire-500 mr-3" fill="none" viewBox="0 0 24 24">
-          <circle
-            class="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            stroke-width="4"
-          />
-          <path
-            class="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
-        <span class="text-fire-700 font-medium">Regenerando todos los tweets...</span>
+        <div class="animate-spin rounded-full w-5 h-5 border-b-2 border-primary mr-3"></div>
+        <span class="text-primary font-medium">Regenerando todos los tweets...</span>
       </div>
     </div>
   </div>
