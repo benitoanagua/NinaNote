@@ -1,5 +1,79 @@
 <template>
   <div class="bg-surfaceContainerHigh rounded-xl p-6 shadow-md3">
+    <!-- Estado de disponibilidad de IA -->
+    <div
+      v-if="!aiAvailable"
+      class="mb-4 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-4"
+    >
+      <div class="flex items-start">
+        <svg
+          class="w-5 h-5 text-primary mr-2 mt-0.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <div>
+          <p class="text-primary text-sm font-medium mb-2">Modo de Desarrollo</p>
+          <p class="text-primary text-sm">
+            Tweets generados con contenido de ejemplo. Para IA real, ejecuta en entorno Puter.js.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="mb-4 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <svg
+            class="w-4 h-4 text-primary mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+          <span class="text-primary text-sm font-medium"
+            >IA disponible - Generación real activa</span
+          >
+        </div>
+        <button
+          v-if="availableModels.length > 0"
+          @click="showModelInfo = !showModelInfo"
+          class="text-primary text-xs underline hover:no-underline"
+        >
+          Ver modelos ({{ availableModels.length }})
+        </button>
+      </div>
+
+      <div
+        v-if="showModelInfo && availableModels.length > 0"
+        class="mt-2 pt-2 border-t border-primaryContainer"
+      >
+        <p class="text-primary text-xs mb-1">Modelos disponibles:</p>
+        <div class="flex flex-wrap gap-1">
+          <span
+            v-for="model in availableModels"
+            :key="model"
+            class="text-xs bg-primary text-onPrimary px-2 py-1 rounded"
+          >
+            {{ model.replace('openrouter:', '').split('/').pop() }}
+          </span>
+        </div>
+      </div>
+    </div>
+
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center">
         <div
@@ -198,7 +272,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import type { ThreadTweet } from '@/composables/useLLM'
 import { useLLM } from '@/composables/useLLM'
 
@@ -213,12 +287,21 @@ const emit = defineEmits<{
   tweetsUpdated: [tweets: ThreadTweet[]]
 }>()
 
-const { regenerateTweet: regenerateSingleTweet, generateThread, isGenerating } = useLLM()
+const {
+  regenerateTweet: regenerateSingleTweet,
+  generateThread,
+  checkPuterAvailability,
+  getAvailableModels,
+  isGenerating,
+} = useLLM()
 
 const isRegenerating = ref(false)
 const regeneratingIndex = ref<number | null>(null)
 const editingIndex = ref<number | null>(null)
 const editingContent = ref('')
+const aiAvailable = ref(false)
+const availableModels = ref<string[]>([])
+const showModelInfo = ref(false)
 
 const regenerateAll = async () => {
   isRegenerating.value = true
@@ -270,4 +353,16 @@ const saveEdit = (index: number) => {
   emit('tweetsUpdated', updatedTweets)
   cancelEdit()
 }
+
+onMounted(async () => {
+  aiAvailable.value = checkPuterAvailability()
+
+  if (aiAvailable.value) {
+    try {
+      availableModels.value = await getAvailableModels()
+    } catch (error) {
+      console.warn('Error getting available models:', error)
+    }
+  }
+})
 </script>
