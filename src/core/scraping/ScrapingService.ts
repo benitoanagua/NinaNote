@@ -1,6 +1,7 @@
 import { Readability } from '@mozilla/readability'
 import type { ScrapedContent } from '../types'
 import { BaseService } from '../base/BaseService'
+import { MOCK_CONTENT } from '../ai/PromptTemplate'
 
 export class ScrapingService extends BaseService {
   constructor() {
@@ -144,25 +145,10 @@ export class ScrapingService extends BaseService {
   }
 
   private getMockContent(url: string): ScrapedContent {
-    // Contenido de ejemplo para desarrollo
-    const mockContent = `
-Editorial: La Transformación Digital en América Latina
-
-La transformación digital ha llegado para quedarse en América Latina. Las empresas que no se adapten a las nuevas tecnologías se quedarán atrás en un mercado cada vez más competitivo.
-
-Los datos revelan que el 85% de las compañías latinoamericanas han acelerado sus procesos de digitalización desde 2020. Esta tendencia no es casualidad, sino una necesidad imperante para sobrevivir en la nueva economía digital.
-
-Sin embargo, la brecha digital sigue siendo un desafío. Las PYMES enfrentan obstáculos significativos para acceder a tecnologías avanzadas debido a limitaciones presupuestarias y falta de conocimiento técnico.
-
-La solución pasa por políticas públicas que incentiven la adopción tecnológica, programas de capacitación digital y alianzas estratégicas entre el sector público y privado.
-
-El futuro de América Latina depende de qué tan rápido podamos cerrar esta brecha y convertir la tecnología en motor de crecimiento inclusivo y sostenible.
-    `.trim()
-
     return {
       url,
       title: 'La Transformación Digital en América Latina',
-      content: mockContent,
+      content: MOCK_CONTENT,
       excerpt: 'Un análisis sobre la transformación digital en América Latina y sus desafíos',
       author: 'Autor de Ejemplo',
       publishedDate: new Date().toISOString(),

@@ -1,5 +1,6 @@
 import type { AIModel, AIResponse, ThreadTweet } from '../types'
 import { BaseService } from '../base/BaseService'
+import { PROMPT_TEMPLATES, PromptEngine, MOCK_CONTENT } from './PromptTemplate'
 
 export class AIService extends BaseService {
   private availableModels: AIModel[] = [
@@ -109,41 +110,20 @@ export class AIService extends BaseService {
   }
 
   private buildThreadPrompt(text: string): string {
-    return `
-Convierte este editorial en un hilo de Twitter de máximo 4 tweets.
+    const truncatedContent = PromptEngine.truncateContent(text, 4000)
 
-REGLAS ESTRICTAS:
-- Cada tweet debe tener máximo 280 caracteres
-- Mantén la esencia y los puntos clave del artículo
-- Usa emojis estratégicamente para hacerlo más atractivo
-- El primer tweet debe captar atención inmediatamente
-- El último tweet debe tener call-to-action o reflexión poderosa
-- Cada tweet debe funcionar de forma independiente pero conectar con los demás
-- Usa un tono profesional pero accesible
-
-EDITORIAL:
-${text.slice(0, 4000)} ${text.length > 4000 ? '...' : ''}
-
-Formato de respuesta: devuelve SOLO los tweets, uno por línea, sin numeración ni explicaciones adicionales.
-    `.trim()
+    return PromptEngine.compile(PROMPT_TEMPLATES.GENERATE_THREAD, {
+      content: truncatedContent,
+    })
   }
 
   private buildRegeneratePrompt(originalText: string, tweetIndex: number): string {
-    return `
-Regenera SOLO el tweet número ${tweetIndex + 1} de un hilo sobre este contenido:
+    const truncatedContent = PromptEngine.truncateContent(originalText, 2000)
 
-${originalText.slice(0, 2000)}
-
-Requisitos:
-- Máximo 280 caracteres
-- Diferente perspectiva pero mismo mensaje clave
-- Mantén el tono y estilo profesional
-- Incluye emojis estratégicos
-- ${tweetIndex === 0 ? 'Debe captar atención (es el primer tweet)' : ''}
-- ${tweetIndex === 3 ? 'Debe incluir call-to-action o reflexión final' : ''}
-
-Responde SOLO con el nuevo tweet, sin explicaciones.
-    `.trim()
+    return PromptEngine.compile(PROMPT_TEMPLATES.REGENERATE_TWEET, {
+      content: truncatedContent,
+      tweetIndex: tweetIndex + 1, // Convertir a 1-based index para el prompt
+    })
   }
 
   private async sendAIRequest(
@@ -207,6 +187,11 @@ Responde SOLO con el nuevo tweet, sin explicaciones.
       content: content.trim(),
       charCount: content.trim().length,
     }))
+  }
+
+  // Método para obtener contenido mock (para desarrollo)
+  getMockContent(): string {
+    return MOCK_CONTENT
   }
 }
 
