@@ -20,9 +20,9 @@
           />
         </svg>
         <div>
-          <p class="text-primary text-sm font-medium mb-2">Modo de Desarrollo</p>
+          <p class="text-primary text-sm font-medium mb-2">{{ $t('ai.status.development') }}</p>
           <p class="text-primary text-sm">
-            Tweets generados con contenido de ejemplo. Para IA real, ejecuta en entorno Puter.js.
+            {{ $t('ai.status.developmentDescription') }}
           </p>
         </div>
       </div>
@@ -44,16 +44,14 @@
               d="M5 13l4 4L19 7"
             />
           </svg>
-          <span class="text-primary text-sm font-medium"
-            >IA disponible - Generación real activa</span
-          >
+          <span class="text-primary text-sm font-medium">{{ $t('ai.status.available') }}</span>
         </div>
         <button
           v-if="availableModels.length > 0"
           @click="showModelInfo = !showModelInfo"
           class="text-primary text-xs underline hover:no-underline"
         >
-          Ver modelos ({{ availableModels.length }})
+          {{ $t('ai.models.count', { count: availableModels.length }) }}
         </button>
       </div>
 
@@ -61,7 +59,7 @@
         v-if="showModelInfo && availableModels.length > 0"
         class="mt-2 pt-2 border-t border-primaryContainer"
       >
-        <p class="text-primary text-xs mb-1">Modelos disponibles:</p>
+        <p class="text-primary text-xs mb-1">{{ $t('ai.models.title') }}:</p>
         <div class="flex flex-wrap gap-1">
           <span
             v-for="model in availableModels"
@@ -89,8 +87,10 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-xl font-semibold text-onSurface">Tu Hilo de Twitter</h2>
-          <p class="text-onSurfaceVariant text-sm">{{ tweets.length }} tweets generados</p>
+          <h2 class="text-xl font-semibold text-onSurface">{{ $t('thread.title') }}</h2>
+          <p class="text-onSurfaceVariant text-sm">
+            {{ $t('summary.tweetsCount', { count: tweets.length }) }}
+          </p>
         </div>
       </div>
 
@@ -107,7 +107,7 @@
             d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
           />
         </svg>
-        Regenerar todo
+        {{ $t('thread.regenerateAll') }}
       </button>
     </div>
 
@@ -133,7 +133,7 @@
                 'text-onSurfaceVariant': tweet.charCount <= 280,
               }"
             >
-              {{ tweet.charCount }}/280
+              {{ $t('summary.charCount', { count: tweet.charCount }) }}
             </div>
           </div>
 
@@ -142,7 +142,7 @@
               @click="regenerateTweet(index)"
               :disabled="regeneratingIndex === index"
               class="p-2 text-onSurfaceVariant hover:text-primary rounded-full"
-              title="Regenerar este tweet"
+              :title="$t('summary.regenerateTweet')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -157,7 +157,7 @@
             <button
               @click="editTweet(index)"
               class="p-2 text-onSurfaceVariant hover:text-primary rounded-full"
-              title="Editar este tweet"
+              :title="$t('summary.editTweet')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -188,7 +188,7 @@
                 'border-error focus:border-error focus:ring-error/20': editingContent.length > 280,
               }"
               rows="3"
-              placeholder="Edita tu tweet..."
+              :placeholder="$t('thread.editPlaceholder')"
             />
             <div class="flex items-center justify-between">
               <span
@@ -198,21 +198,21 @@
                   'text-onSurfaceVariant': editingContent.length <= 280,
                 }"
               >
-                {{ editingContent.length }}/280 caracteres
+                {{ $t('summary.charCount', { count: editingContent.length }) }}
               </span>
               <div class="flex gap-2">
                 <button
                   @click="cancelEdit"
                   class="px-3 py-1 text-sm text-onSurfaceVariant hover:text-onSurface rounded-lg"
                 >
-                  Cancelar
+                  {{ $t('summary.cancelEdit') }}
                 </button>
                 <button
                   @click="saveEdit(index)"
                   :disabled="editingContent.length > 280"
                   class="px-3 py-1 text-sm bg-primary text-onPrimary rounded-lg hover:bg-primary disabled:opacity-60"
                 >
-                  Guardar
+                  {{ $t('summary.saveEdit') }}
                 </button>
               </div>
             </div>
@@ -239,8 +239,10 @@
               />
             </svg>
             <div>
-              <p class="text-error text-sm font-medium">Tweet demasiado largo</p>
-              <p class="text-error text-sm">Excede por {{ tweet.charCount - 280 }} caracteres</p>
+              <p class="text-error text-sm font-medium">{{ $t('summary.tweetTooLong') }}</p>
+              <p class="text-error text-sm">
+                {{ $t('summary.exceedsBy', { count: tweet.charCount - 280 }) }}
+              </p>
             </div>
           </div>
         </div>
@@ -252,7 +254,7 @@
         >
           <div class="flex items-center">
             <div class="animate-spin rounded-full w-4 h-4 border-b-2 border-primary mr-2"></div>
-            <span class="text-primary text-sm">Regenerando tweet...</span>
+            <span class="text-primary text-sm">{{ $t('thread.regenerating') }}</span>
           </div>
         </div>
       </div>
@@ -265,7 +267,7 @@
     >
       <div class="flex items-center justify-center">
         <div class="animate-spin rounded-full w-5 h-5 border-b-2 border-primary mr-3"></div>
-        <span class="text-primary font-medium">Regenerando todos los tweets...</span>
+        <span class="text-primary font-medium">{{ $t('thread.regeneratingAll') }}</span>
       </div>
     </div>
   </div>

@@ -23,7 +23,7 @@
                 />
               </svg>
             </div>
-            <h1 class="text-2xl font-semibold text-onSurface">Nina Note</h1>
+            <h1 class="text-2xl font-semibold text-onSurface">{{ $t('app.name') }}</h1>
           </div>
 
           <!-- Sección central: Navegación -->

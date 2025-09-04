@@ -18,7 +18,8 @@
     "confirm": "Confirm",
     "back": "Back",
     "next": "Next",
-    "previous": "Previous"
+    "previous": "Previous",
+    "change": "Change"
   },
 
   "navigation": {
@@ -55,7 +56,16 @@
     "saveEdit": "Save",
     "cancelEdit": "Cancel",
     "tweetTooLong": "Tweet too long",
-    "exceedsBy": "Exceeds by {count} characters"
+    "exceedsBy": "Exceeds by {count} characters",
+    "backButton": "Process another article"
+  },
+
+  "thread": {
+    "title": "Your Twitter Thread",
+    "regenerateAll": "Regenerate all",
+    "regenerating": "Regenerating tweet...",
+    "regeneratingAll": "Regenerating all tweets...",
+    "editPlaceholder": "Edit your tweet..."
   },
 
   "history": {
@@ -64,7 +74,8 @@
     "empty": "No saved threads yet",
     "createFirst": "Create your first thread",
     "deleteConfirm": "Are you sure you want to delete this thread?",
-    "dateFormat": "{month} {day}, {year} at {time}"
+    "dateFormat": "{month} {day}, {year} at {time}",
+    "deleteThread": "Delete thread"
   },
 
   "twitter": {
@@ -85,13 +96,18 @@
     "publish": "Publish Thread",
     "copy": "Copy to Clipboard",
     "publishing": "Publishing...",
+    "tokenSave": "Save Token",
+    "tokenClear": "Clear Token",
+    "tokenConfigured": "Twitter token configured",
+    "showHide": "Show/Hide token",
     "success": {
       "published": "Thread published successfully! {count} tweets were published to your Twitter account.",
       "copied": "Thread copied to clipboard. You can paste it manually on Twitter."
     },
     "validation": {
       "noTweets": "No tweets to publish",
-      "longTweets": "{count} tweet(s) exceed 280 characters"
+      "longTweets": "{count} tweet(s) exceed 280 characters",
+      "beforePublishing": "Before publishing, check the following:"
     }
   },
 

@@ -2,8 +2,8 @@
   <div class="min-h-screen bg-background py-12 px-4">
     <div class="max-w-4xl mx-auto">
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-semibold text-onSurface mb-2">Historial de Hilos</h1>
-        <p class="text-onSurfaceVariant">Tus hilos generados recientemente</p>
+        <h1 class="text-3xl font-semibold text-onSurface mb-2">{{ $t('history.title') }}</h1>
+        <p class="text-onSurfaceVariant">{{ $t('history.subtitle') }}</p>
       </div>
 
       <div v-if="sessionStore.savedThreads.length === 0" class="text-center py-12">
@@ -17,12 +17,12 @@
             />
           </svg>
         </div>
-        <p class="text-onSurfaceVariant mb-4">No hay hilos guardados todavía</p>
+        <p class="text-onSurfaceVariant mb-4">{{ $t('history.empty') }}</p>
         <router-link
           to="/"
           class="px-6 py-2 bg-primary text-onPrimary rounded-lg shadow-md3 hover:shadow-md3-lg"
         >
-          Crear tu primer hilo
+          {{ $t('history.createFirst') }}
         </router-link>
       </div>
 
@@ -49,7 +49,7 @@
             <button
               @click="deleteThread(thread.id)"
               class="p-2 text-onSurfaceVariant hover:text-error rounded-full"
-              title="Eliminar hilo"
+              :title="$t('history.deleteThread')"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -74,7 +74,9 @@
                 >
                   {{ index + 1 }}
                 </div>
-                <div class="text-sm text-onSurfaceVariant">{{ tweet.charCount }}/280</div>
+                <div class="text-sm text-onSurfaceVariant">
+                  {{ $t('summary.charCount', { count: tweet.charCount }) }}
+                </div>
               </div>
               <p class="text-onSurface text-sm leading-relaxed">
                 {{ tweet.content }}
@@ -89,8 +91,10 @@
 
 <script setup lang="ts">
 import { useSessionStore } from '@/stores/session'
+import { useI18n } from 'vue-i18n'
 
 const sessionStore = useSessionStore()
+const { t } = useI18n()
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('es-ES', {
@@ -103,7 +107,7 @@ const formatDate = (dateString: string) => {
 }
 
 const deleteThread = (threadId: string) => {
-  if (confirm('¿Estás seguro de que quieres eliminar este hilo?')) {
+  if (confirm(t('history.deleteConfirm'))) {
     sessionStore.deleteThread(threadId)
   }
 }

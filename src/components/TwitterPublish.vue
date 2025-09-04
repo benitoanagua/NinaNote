@@ -9,9 +9,9 @@
         </svg>
       </div>
       <div>
-        <h2 class="text-xl font-semibold text-onSurface">Publicar en Twitter</h2>
+        <h2 class="text-xl font-semibold text-onSurface">{{ $t('twitter.title') }}</h2>
         <p class="text-onSurfaceVariant text-sm">
-          Comparte tu hilo directamente o cópialo al portapapeles
+          {{ $t('twitter.subtitle') }}
         </p>
       </div>
     </div>
@@ -34,15 +34,15 @@
             />
           </svg>
           <div>
-            <p class="text-primary text-sm font-medium mb-2">Configuración de Twitter API</p>
+            <p class="text-primary text-sm font-medium mb-2">{{ $t('twitter.config.title') }}</p>
             <p class="text-primary text-sm mb-3">
-              Para publicar directamente, necesitas un Bearer Token de la API de Twitter.
+              {{ $t('twitter.config.description') }}
               <a
                 href="https://developer.twitter.com/en/docs/twitter-api/getting-started/getting-access-to-the-twitter-api"
                 target="_blank"
                 class="underline hover:no-underline"
               >
-                Aprende cómo obtenerlo aquí
+                {{ $t('twitter.config.learnMore') }}
               </a>
             </p>
           </div>
@@ -52,14 +52,14 @@
       <div class="space-y-4">
         <div>
           <label for="token" class="block text-sm font-medium text-onSurfaceVariant mb-2">
-            Bearer Token de Twitter
+            {{ $t('twitter.config.tokenLabel') }}
           </label>
           <div class="relative">
             <input
               id="token"
               v-model="tokenInput"
               :type="showToken ? 'text' : 'password'"
-              placeholder="AAAA..."
+              :placeholder="$t('twitter.config.tokenPlaceholder')"
               class="input-outlined w-full px-4 py-3 bg-surfaceContainerHighest border border-outline rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 pr-24 text-onSurface"
               :class="{ 'border-error focus:border-error focus:ring-error/20': tokenError }"
             />
@@ -68,7 +68,7 @@
                 type="button"
                 @click="showToken = !showToken"
                 class="p-1 text-onSurfaceVariant hover:text-onSurface rounded-full"
-                title="Mostrar/Ocultar token"
+                :title="$t('twitter.showHide')"
               >
                 <svg
                   v-if="!showToken"
@@ -105,7 +105,7 @@
             {{ tokenError }}
           </p>
           <p class="mt-2 text-xs text-onSurfaceVariant">
-            Tu token se guarda solo durante esta sesión y nunca se envía a nuestros servidores
+            {{ $t('twitter.config.tokenHelp') }}
           </p>
         </div>
 
@@ -115,14 +115,14 @@
             :disabled="!tokenInput.trim()"
             class="px-4 py-2 bg-primary text-onPrimary rounded-lg hover:bg-primary disabled:opacity-60"
           >
-            Guardar Token
+            {{ $t('twitter.tokenSave') }}
           </button>
           <button
             v-if="sessionStore.hasTwitterToken()"
             @click="clearToken"
             class="px-4 py-2 bg-secondaryContainer text-onSecondaryContainer rounded-lg hover:bg-secondaryContainer"
           >
-            Limpiar Token
+            {{ $t('twitter.tokenClear') }}
           </button>
         </div>
       </div>
@@ -147,13 +147,15 @@
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            <span class="text-primary text-sm font-medium">Token de Twitter configurado</span>
+            <span class="text-primary text-sm font-medium">{{
+              $t('twitter.tokenConfigured')
+            }}</span>
           </div>
           <button
             @click="showTokenConfig = true"
             class="text-primary hover:text-primary text-sm underline"
           >
-            Cambiar
+            {{ $t('common.change') }}
           </button>
         </div>
       </div>
@@ -171,11 +173,11 @@
                 d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
               />
             </svg>
-            Publicar Hilo
+            {{ $t('twitter.publish') }}
           </span>
           <span v-else class="flex items-center justify-center">
             <div class="animate-spin rounded-full w-5 h-5 border-b-2 border-onPrimary mr-2"></div>
-            Publicando...
+            {{ $t('twitter.publishing') }}
           </span>
         </button>
 
@@ -191,7 +193,7 @@
               d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
             />
           </svg>
-          Copiar al Portapapeles
+          {{ $t('twitter.copy') }}
         </button>
       </div>
     </div>
@@ -216,7 +218,9 @@
           />
         </svg>
         <div>
-          <p class="text-error text-sm font-medium mb-2">Antes de publicar, revisa lo siguiente:</p>
+          <p class="text-error text-sm font-medium mb-2">
+            {{ $t('twitter.validation.beforePublishing') }}
+          </p>
           <ul class="text-error text-sm space-y-1">
             <li v-for="error in validationErrors" :key="error" class="flex items-center">
               <span class="w-1 h-1 bg-error rounded-full mr-2"></span>
@@ -276,13 +280,14 @@ import { ref, computed, watch } from 'vue'
 import { useTwitter } from '@/composables/useTwitter'
 import { useSessionStore } from '@/stores/session'
 import type { ThreadTweet } from '@/composables/useLLM'
+import { useI18n } from 'vue-i18n'
 
 interface Props {
   tweets: ThreadTweet[]
 }
 
 const props = defineProps<Props>()
-
+const { t } = useI18n()
 const sessionStore = useSessionStore()
 const { postThread, copyThreadToClipboard, validateToken, isPosting, error, successMessage } =
   useTwitter()
@@ -296,12 +301,12 @@ const validationErrors = computed(() => {
   const errors: string[] = []
 
   if (props.tweets.length === 0) {
-    errors.push('No hay tweets para publicar')
+    errors.push(t('twitter.validation.noTweets'))
   }
 
   const longTweets = props.tweets.filter((t) => t.charCount > 280)
   if (longTweets.length > 0) {
-    errors.push(`${longTweets.length} tweet(s) exceden los 280 caracteres`)
+    errors.push(t('twitter.validation.longTweets', { count: longTweets.length }))
   }
 
   return errors
@@ -319,12 +324,12 @@ const saveToken = () => {
   tokenError.value = null
 
   if (!tokenInput.value.trim()) {
-    tokenError.value = 'Por favor ingresa un token'
+    tokenError.value = t('twitter.config.tokenError.empty')
     return
   }
 
   if (!validateToken(tokenInput.value)) {
-    tokenError.value = 'Token inválido. Debe comenzar con "AAAA" y tener más de 50 caracteres.'
+    tokenError.value = t('twitter.config.tokenError.invalid')
     return
   }
 

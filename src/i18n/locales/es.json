@@ -18,7 +18,8 @@
     "confirm": "Confirmar",
     "back": "Volver",
     "next": "Siguiente",
-    "previous": "Anterior"
+    "previous": "Anterior",
+    "change": "Cambiar"
   },
 
   "navigation": {
@@ -55,7 +56,16 @@
     "saveEdit": "Guardar",
     "cancelEdit": "Cancelar",
     "tweetTooLong": "Tweet demasiado largo",
-    "exceedsBy": "Excede por {count} caracteres"
+    "exceedsBy": "Excede por {count} caracteres",
+    "backButton": "Procesar otro artículo"
+  },
+
+  "thread": {
+    "title": "Tu Hilo de Twitter",
+    "regenerateAll": "Regenerar todo",
+    "regenerating": "Regenerando tweet...",
+    "regeneratingAll": "Regenerando todos los tweets...",
+    "editPlaceholder": "Edita tu tweet..."
   },
 
   "history": {
@@ -64,7 +74,8 @@
     "empty": "No hay hilos guardados todavía",
     "createFirst": "Crear tu primer hilo",
     "deleteConfirm": "¿Estás seguro de que quieres eliminar este hilo?",
-    "dateFormat": "{day} de {month} de {year} a las {time}"
+    "dateFormat": "{day} de {month} de {year} a las {time}",
+    "deleteThread": "Eliminar hilo"
   },
 
   "twitter": {
@@ -85,13 +96,18 @@
     "publish": "Publicar Hilo",
     "copy": "Copiar al Portapapeles",
     "publishing": "Publicando...",
+    "tokenSave": "Guardar Token",
+    "tokenClear": "Limpiar Token",
+    "tokenConfigured": "Token de Twitter configurado",
+    "showHide": "Mostrar/Ocultar token",
     "success": {
       "published": "¡Hilo publicado exitosamente! {count} tweets fueron publicados en tu cuenta de Twitter.",
       "copied": "Hilo copiado al portapapeles. Puedes pegarlo manualmente en Twitter."
     },
     "validation": {
       "noTweets": "No hay tweets para publicar",
-      "longTweets": "{count} tweet(s) exceden los 280 caracteres"
+      "longTweets": "{count} tweet(s) exceden los 280 caracteres",
+      "beforePublishing": "Antes de publicar, revisa lo siguiente:"
     }
   },
 

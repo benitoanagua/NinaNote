@@ -2,8 +2,8 @@
   <div class="min-h-screen bg-background py-8 px-4">
     <div class="max-w-4xl mx-auto">
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-semibold text-onSurface mb-2">Resumen Generado</h1>
-        <p class="text-onSurfaceVariant">Hilo de Twitter creado a partir del artículo</p>
+        <h1 class="text-3xl font-semibold text-onSurface mb-2">{{ $t('summary.title') }}</h1>
+        <p class="text-onSurfaceVariant">{{ $t('summary.subtitle') }}</p>
         <a
           :href="decodedUrl"
           target="_blank"
@@ -34,7 +34,7 @@
               d="M10 19l-7-7m0 0l7-7m-7 7h18"
             />
           </svg>
-          Procesar otro artículo
+          {{ $t('summary.backButton') }}
         </button>
       </div>
     </div>

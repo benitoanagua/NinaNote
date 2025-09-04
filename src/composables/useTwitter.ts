@@ -22,9 +22,7 @@ export const useTwitter = () => {
 
     try {
       if (!validateToken(config.bearerToken)) {
-        throw new Error(
-          'Token de Twitter inválido. Debe comenzar con "AAAA" y tener más de 50 caracteres.',
-        )
+        throw new Error('Token inválido. Debe comenzar con "AAAA" y tener más de 50 caracteres.')
       }
 
       // En desarrollo, simulamos la publicación
