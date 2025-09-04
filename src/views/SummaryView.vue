@@ -51,11 +51,12 @@ import TwitterPublish from '@/components/TwitterPublish.vue'
 import type { ThreadTweet } from '@/core/types'
 
 const route = useRoute()
-const { scrapeText } = useScraper()
+const { scrapeTextWithImages } = useScraper()
 const { generateThread } = useLLM()
 
 const tweets = ref<ThreadTweet[]>([])
 const articleContent = ref('')
+const articleImages = ref<string[]>([])
 
 const decodedUrl = computed(() => {
   return route.query.url ? decodeURIComponent(route.query.url as string) : ''
@@ -70,13 +71,15 @@ onMounted(async () => {
     const url = decodeURIComponent(route.query.url as string)
     console.log('📄 Processing article from URL:', url)
 
-    const content = await scrapeText(url)
+    const { content, images } = await scrapeTextWithImages(url)
     articleContent.value = content
+    articleImages.value = images
     console.log('📝 Article content length:', content.length)
+    console.log('🖼️ Extracted images:', images.length)
 
-    const generatedTweets = await generateThread(content)
+    const generatedTweets = await generateThread(content, images)
     tweets.value = generatedTweets
-    console.log('🐦 Tweets generated:', generatedTweets.length)
+    console.log('🐦 Tweets generated with images:', generatedTweets.length)
   } catch (error) {
     console.error('❌ Error processing article:', error)
 
@@ -94,7 +97,7 @@ sino una necesidad imperante para sobrevivir en la nueva economía digital.
     `.trim()
 
     try {
-      const fallbackTweets = await generateThread(articleContent.value)
+      const fallbackTweets = await generateThread(articleContent.value, [])
       tweets.value = fallbackTweets
     } catch (fallbackError) {
       console.error('❌ Even fallback failed:', fallbackError)

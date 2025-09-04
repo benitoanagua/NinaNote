@@ -1,6 +1,7 @@
 import type { AIModel, AIResponse, ThreadTweet } from '../types'
 import { BaseService } from '../base/BaseService'
 import { PROMPT_TEMPLATES, PromptEngine, MOCK_CONTENT } from './PromptTemplate'
+import { ImageUtils } from '../utils/imageUtils'
 
 export class AIService extends BaseService {
   private availableModels: AIModel[] = [
@@ -56,7 +57,11 @@ export class AIService extends BaseService {
     return checkedModels
   }
 
-  async generateThread(text: string, modelId?: string): Promise<ThreadTweet[]> {
+  async generateThread(
+    text: string,
+    images: string[] = [],
+    modelId?: string,
+  ): Promise<ThreadTweet[]> {
     this.logStart('Generating thread')
 
     try {
@@ -73,8 +78,11 @@ export class AIService extends BaseService {
       const response = await this.sendAIRequest(prompt, modelToUse.id)
       const tweets = this.processAIResponse(response)
 
-      this.logSuccess(`Generated ${tweets.length} tweets`)
-      return tweets
+      // Asignar imágenes a los tweets
+      const tweetsWithImages = this.assignImagesToTweets(tweets, images)
+
+      this.logSuccess(`Generated ${tweetsWithImages.length} tweets with images`)
+      return tweetsWithImages
     } catch (error) {
       this.logError('Failed to generate thread', error)
       throw error
@@ -107,6 +115,32 @@ export class AIService extends BaseService {
       this.logError('Failed to regenerate tweet', error)
       throw error
     }
+  }
+
+  private assignImagesToTweets(tweets: ThreadTweet[], images: string[]): ThreadTweet[] {
+    return tweets.map((tweet, index) => {
+      // Si hay imagen disponible para este índice, usarla
+      if (images[index] && ImageUtils.isValidImageUrl(images[index])) {
+        return {
+          ...tweet,
+          imageUrl: images[index],
+        }
+      }
+
+      // Si no hay imagen específica pero hay imágenes disponibles, usar la primera
+      if (images.length > 0 && index === 0) {
+        return {
+          ...tweet,
+          imageUrl: images[0],
+        }
+      }
+
+      // Usar placeholder para los tweets restantes
+      return {
+        ...tweet,
+        imageUrl: ImageUtils.getPlaceholderImage(index),
+      }
+    })
   }
 
   private buildThreadPrompt(text: string): string {

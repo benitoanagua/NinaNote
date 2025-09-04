@@ -175,9 +175,22 @@
         <div class="mb-3">
           <div
             v-if="editingIndex !== index"
-            class="text-onSurface leading-relaxed whitespace-pre-wrap"
+            class="text-onSurface leading-relaxed whitespace-pre-wrap mb-3"
           >
             {{ tweet.content }}
+          </div>
+
+          <!-- Mostrar imagen si existe -->
+          <div v-if="tweet.imageUrl && editingIndex !== index" class="mt-3">
+            <img
+              :src="tweet.imageUrl"
+              :alt="`Imagen para tweet ${index + 1}`"
+              class="rounded-lg w-full h-48 object-cover shadow-sm"
+              @error="handleImageError(tweet, index)"
+            />
+            <p class="text-xs text-onSurfaceVariant mt-1 text-center">
+              Imagen {{ index + 1 }} de {{ tweets.length }}
+            </p>
           </div>
 
           <div v-else class="space-y-2">
@@ -278,6 +291,7 @@ import { ref, onMounted } from 'vue'
 import type { ThreadTweet } from '@/core/types'
 import type { AIModel } from '@/core/types'
 import { useLLM } from '@/composables/useLLM'
+import { ImageUtils } from '@/core/utils/imageUtils'
 
 interface Props {
   tweets: ThreadTweet[]
@@ -309,7 +323,9 @@ const showModelInfo = ref(false)
 const regenerateAll = async () => {
   isRegenerating.value = true
   try {
-    const newTweets = await generateThread(props.originalContent)
+    // Extraer las imágenes actuales de los tweets para mantenerlas
+    const currentImages = props.tweets.map((tweet) => tweet.imageUrl || '')
+    const newTweets = await generateThread(props.originalContent, currentImages)
     emit('tweetsUpdated', newTweets)
   } catch (error) {
     console.error('Error regenerating thread:', error)
@@ -357,8 +373,14 @@ const saveEdit = (index: number) => {
   cancelEdit()
 }
 
+// Manejar errores de carga de imágenes
+const handleImageError = (tweet: ThreadTweet, index: number) => {
+  // Reemplazar con placeholder si la imagen falla
+  tweet.imageUrl = ImageUtils.getPlaceholderImage(index)
+}
+
 onMounted(async () => {
-  aiAvailable.value = checkPuterAvailability()
+  aiAvailable.value = await checkPuterAvailability()
 
   if (aiAvailable.value) {
     try {

@@ -3,6 +3,7 @@ export interface ThreadTweet {
   id: string
   content: string
   charCount: number
+  imageUrl?: string
 }
 
 export interface SavedThread {
@@ -36,6 +37,7 @@ export interface ScrapedContent {
   author?: string
   publishedDate?: string
   image?: string
+  images?: string[]
 }
 
 // Tipos para Twitter

@@ -2,6 +2,7 @@ import { Readability } from '@mozilla/readability'
 import type { ScrapedContent } from '../types'
 import { BaseService } from '../base/BaseService'
 import { MOCK_CONTENT } from '../ai/PromptTemplate'
+import { ImageUtils } from '../utils/imageUtils'
 
 export class ScrapingService extends BaseService {
   constructor() {
@@ -29,6 +30,30 @@ export class ScrapingService extends BaseService {
     } catch (error) {
       this.logError('Failed to scrape content', error)
       throw error
+    }
+  }
+
+  async extractImages(url: string): Promise<string[]> {
+    this.logStart(`Extracting images from ${url}`)
+
+    try {
+      // Modo desarrollo
+      if (import.meta.env.DEV && !this.checkPuterAvailability()) {
+        return this.getMockImages()
+      }
+
+      // Scraping real con Puter.js
+      const html = await this.fetchHtml(url)
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(html, 'text/html')
+
+      const images = ImageUtils.extractAllImages(doc)
+
+      this.logSuccess(`Extracted ${images.length} images`)
+      return images
+    } catch (error) {
+      this.logError('Failed to extract images', error)
+      return this.getMockImages() // Fallback a imágenes mock
     }
   }
 
@@ -90,6 +115,9 @@ export class ScrapingService extends BaseService {
       throw new Error('Extracted content too short')
     }
 
+    // Extraer imágenes del contenido
+    const images = ImageUtils.extractAllImages(doc)
+
     return {
       url,
       title: article.title || 'Untitled',
@@ -97,7 +125,8 @@ export class ScrapingService extends BaseService {
       excerpt: article.excerpt || '',
       author: article.byline || undefined,
       publishedDate: undefined,
-      image: this.extractImage(doc) || undefined,
+      image: images.length > 0 ? images[0] : undefined, // Primera imagen como imagen principal
+      images: images, // Todas las imágenes extraídas
     }
   }
 
@@ -144,7 +173,7 @@ export class ScrapingService extends BaseService {
     return null
   }
 
-  private getMockContent(url: string): ScrapedContent {
+  private getMockContent(url: string): ScrapedContent & { images?: string[] } {
     return {
       url,
       title: 'La Transformación Digital en América Latina',
@@ -152,7 +181,16 @@ export class ScrapingService extends BaseService {
       excerpt: 'Un análisis sobre la transformación digital en América Latina y sus desafíos',
       author: 'Autor de Ejemplo',
       publishedDate: new Date().toISOString(),
+      images: this.getMockImages(),
     }
+  }
+
+  private getMockImages(): string[] {
+    return [
+      'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600',
+      'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600',
+      'https://images.unsplash.com/photo-1533750349088-cd871a92f312?w=600',
+    ]
   }
 }
 

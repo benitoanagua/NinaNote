@@ -6,12 +6,12 @@ export const useLLM = () => {
   const isGenerating = ref(false)
   const error = ref<string | null>(null)
 
-  const generateThread = async (text: string): Promise<ThreadTweet[]> => {
+  const generateThread = async (text: string, images: string[] = []): Promise<ThreadTweet[]> => {
     isGenerating.value = true
     error.value = null
 
     try {
-      return await aiService.generateThread(text)
+      return await aiService.generateThread(text, images)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Error al generar el hilo'
       throw error.value
@@ -32,8 +32,8 @@ export const useLLM = () => {
     return await aiService.getAvailableModels()
   }
 
-  const checkPuterAvailability = (): boolean => {
-    return typeof window !== 'undefined' && !!(window as any).puter?.ai?.chat
+  const checkPuterAvailability = async (): Promise<boolean> => {
+    return await aiService.checkAvailability()
   }
 
   return {

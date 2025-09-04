@@ -85,12 +85,11 @@ const emit = defineEmits<{
   error: [error: Error | string]
 }>()
 
-const { scrapeText, validateUrl, checkPuterAvailability, isLoading, error } = useScraper()
+const { scrapeContent, validateUrl, isLoading } = useScraper()
 const { t } = useI18n()
 
 const urlInput = ref('')
 const urlError = ref<string | null>(null)
-const puterAvailable = ref(false)
 
 const handleSubmit = async () => {
   urlError.value = null
@@ -104,7 +103,9 @@ const handleSubmit = async () => {
 
   try {
     logger.info('Starting URL processing', { context: 'UrlInput' })
-    const content = await scrapeText(urlInput.value)
+
+    const contentResult = await scrapeContent(urlInput.value)
+    const content = contentResult.content
 
     if (!content || content.trim().length < 100) {
       urlError.value = t('errors.scraping.noContent')
