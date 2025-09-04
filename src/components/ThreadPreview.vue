@@ -63,10 +63,10 @@
         <div class="flex flex-wrap gap-1">
           <span
             v-for="model in availableModels"
-            :key="model"
+            :key="model.id"
             class="text-xs bg-primary text-onPrimary px-2 py-1 rounded"
           >
-            {{ model.replace('openrouter:', '').split('/').pop() }}
+            {{ model.name }}
           </span>
         </div>
       </div>
@@ -275,7 +275,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import type { ThreadTweet } from '@/composables/useLLM'
+import type { ThreadTweet } from '@/core/types'
+import type { AIModel } from '@/core/types'
 import { useLLM } from '@/composables/useLLM'
 
 interface Props {
@@ -302,7 +303,7 @@ const regeneratingIndex = ref<number | null>(null)
 const editingIndex = ref<number | null>(null)
 const editingContent = ref('')
 const aiAvailable = ref(false)
-const availableModels = ref<string[]>([])
+const availableModels = ref<AIModel[]>([])
 const showModelInfo = ref(false)
 
 const regenerateAll = async () => {

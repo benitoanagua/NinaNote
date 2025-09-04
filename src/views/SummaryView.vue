@@ -48,7 +48,7 @@ import { useScraper } from '@/composables/useScraper'
 import { useLLM } from '@/composables/useLLM'
 import ThreadPreview from '@/components/ThreadPreview.vue'
 import TwitterPublish from '@/components/TwitterPublish.vue'
-import type { ThreadTweet } from '@/composables/useLLM'
+import type { ThreadTweet } from '@/core/types'
 
 const route = useRoute()
 const { scrapeText } = useScraper()

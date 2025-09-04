@@ -1,19 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import type { SavedThread, ThreadTweet } from '@/core/types'
 
 export const useSessionStore = defineStore('session', () => {
   // Estado
   const twitterToken = ref<string>('')
   const lastProcessedUrl = ref<string>('')
-  const savedThreads = ref<
-    Array<{
-      id: string
-      url: string
-      title: string
-      tweets: any[]
-      createdAt: string
-    }>
-  >([])
+  const savedThreads = ref<SavedThread[]>([])
 
   // Getters
   const hasTwitterToken = () => twitterToken.value.length > 0
@@ -22,7 +15,6 @@ export const useSessionStore = defineStore('session', () => {
   // Actions
   const setTwitterToken = (token: string) => {
     twitterToken.value = token.trim()
-    // En un entorno real, podrías querer almacenar esto de forma segura
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('nina-note-token', token.trim())
     }
@@ -48,8 +40,8 @@ export const useSessionStore = defineStore('session', () => {
     lastProcessedUrl.value = url
   }
 
-  const saveThread = (thread: { url: string; title: string; tweets: any[] }) => {
-    const savedThread = {
+  const saveThread = (thread: { url: string; title: string; tweets: ThreadTweet[] }) => {
+    const savedThread: SavedThread = {
       id: Date.now().toString(),
       ...thread,
       createdAt: new Date().toISOString(),

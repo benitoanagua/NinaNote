@@ -279,7 +279,7 @@
 import { ref, computed, watch } from 'vue'
 import { useTwitter } from '@/composables/useTwitter'
 import { useSessionStore } from '@/stores/session'
-import type { ThreadTweet } from '@/composables/useLLM'
+import type { ThreadTweet } from '@/core/types'
 import { useI18n } from 'vue-i18n'
 
 interface Props {
