@@ -1,5 +1,8 @@
 import { ref } from 'vue'
 import { Readability } from '@mozilla/readability'
+import { logger } from '@/utils/logger'
+import { ScrapingError, handleError, ErrorCodes } from '@/utils/errorHandler'
+import i18n from '@/i18n'
 
 export const useScraper = () => {
   const isLoading = ref(false)
@@ -14,13 +17,17 @@ export const useScraper = () => {
     error.value = null
 
     try {
+      logger.scraping.start(url)
+
       // Validar URL
       new URL(url)
 
-      // En desarrollo sin puter.js, usar mock
+      // Modo desarrollo sin puter.js
       if (import.meta.env.DEV && !checkPuterAvailability()) {
+        logger.warn('Development mode: Using mock data')
         await new Promise((resolve) => setTimeout(resolve, 1500))
-        return `
+
+        const mockContent = `
 Editorial: La Transformación Digital en América Latina
 
 La transformación digital ha llegado para quedarse en América Latina. Las empresas que no se adapten a las nuevas tecnologías se quedarán atrás en un mercado cada vez más competitivo.
@@ -32,19 +39,21 @@ Sin embargo, la brecha digital sigue siendo un desafío. Las PYMES enfrentan obs
 La solución pasa por políticas públicas que incentiven la adopción tecnológica, programas de capacitación digital y alianzas estratégicas entre el sector público y privado.
 
 El futuro de América Latina depende de qué tan rápido podamos cerrar esta brecha y convertir la tecnología en motor de crecimiento inclusivo y sostenible.
-
-Esta transformación requiere una mentalidad abierta al cambio, inversión en educación digital y colaboración entre todos los sectores de la sociedad. Solo así podremos construir un futuro próspero y equitativo para todos.
         `.trim()
+
+        logger.scraping.success(mockContent.length)
+        return mockContent
       }
 
       if (!checkPuterAvailability()) {
-        throw new Error('Puter.js no está disponible para realizar el scraping')
+        throw new ScrapingError(
+          i18n.global.t('errors.scraping.puterRequired'),
+          new Error('Puter.js not available'),
+        )
       }
 
-      // Usar puter.js para obtener el contenido
+      // Usar puter.js para scraping real
       const puter = (window as any).puter
-
-      // Realizar fetch con puter.js
       const response = await puter.net.fetch(url, {
         method: 'GET',
         headers: {
@@ -54,13 +63,21 @@ Esta transformación requiere una mentalidad abierta al cambio, inversión en ed
       })
 
       if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`)
+        throw new ScrapingError(
+          i18n.global.t('errors.scraping.serverError', {
+            message: `${response.status} - ${response.statusText}`,
+          }),
+          new Error(`HTTP ${response.status}: ${response.statusText}`),
+        )
       }
 
       const html = await response.text()
 
       if (!html || html.length < 100) {
-        throw new Error('El contenido obtenido es demasiado corto o vacío')
+        throw new ScrapingError(
+          i18n.global.t('errors.scraping.noContent'),
+          new Error('HTML content too short or empty'),
+        )
       }
 
       // Usar Readability para extraer contenido principal
@@ -77,14 +94,18 @@ Esta transformación requiere una mentalidad abierta al cambio, inversión en ed
       const article = reader.parse()
 
       if (!article) {
-        throw new Error('No se pudo procesar el artículo. El contenido podría no ser compatible.')
+        throw new ScrapingError(
+          i18n.global.t('errors.scraping.parseError'),
+          new Error('Readability could not parse the article'),
+        )
       }
 
       const textContent = article.textContent || ''
 
       if (textContent.length < 200) {
-        throw new Error(
-          'El artículo extraído es demasiado corto. Verifica que la URL contenga un artículo completo.',
+        throw new ScrapingError(
+          i18n.global.t('errors.scraping.noContent'),
+          new Error('Extracted content too short'),
         )
       }
 
@@ -94,27 +115,12 @@ Esta transformación requiere una mentalidad abierta al cambio, inversión en ed
         .replace(/\n\s*\n\s*\n/g, '\n\n') // Limpiar múltiples saltos de línea
         .trim()
 
+      logger.scraping.success(cleanedContent.length)
       return cleanedContent
     } catch (err) {
-      let errorMessage = 'Error desconocido al extraer el contenido'
-
-      if (err instanceof Error) {
-        if (err.message.includes('fetch')) {
-          errorMessage = 'No se pudo acceder a la URL. Verifica que sea correcta y accesible.'
-        } else if (err.message.includes('parse')) {
-          errorMessage = 'Error al procesar el contenido HTML de la página.'
-        } else if (err.message.includes('HTTP')) {
-          errorMessage = `Error del servidor: ${err.message}`
-        } else if (err.message.includes('Puter')) {
-          errorMessage =
-            'Puter.js no está disponible. Esta funcionalidad requiere ejecutarse en el entorno Puter.'
-        } else {
-          errorMessage = err.message
-        }
-      }
-
-      error.value = errorMessage
-      throw new Error(errorMessage)
+      const appError = handleError(err, 'Scraper')
+      error.value = appError.message
+      throw appError
     } finally {
       isLoading.value = false
     }
@@ -128,7 +134,7 @@ Esta transformación requiere una mentalidad abierta al cambio, inversión en ed
       if (!['http:', 'https:'].includes(urlObj.protocol)) {
         return {
           isValid: false,
-          error: 'Solo se permiten URLs HTTP y HTTPS',
+          error: i18n.global.t('home.urlInput.error.invalidProtocol'),
         }
       }
 
@@ -136,7 +142,7 @@ Esta transformación requiere una mentalidad abierta al cambio, inversión en ed
       if (!urlObj.hostname || urlObj.hostname.length < 3) {
         return {
           isValid: false,
-          error: 'La URL debe tener un dominio válido',
+          error: i18n.global.t('home.urlInput.error.invalidDomain'),
         }
       }
 
@@ -144,7 +150,7 @@ Esta transformación requiere una mentalidad abierta al cambio, inversión en ed
     } catch {
       return {
         isValid: false,
-        error: 'URL no válida',
+        error: i18n.global.t('home.urlInput.error.invalid'),
       }
     }
   }
@@ -202,7 +208,7 @@ Esta transformación requiere una mentalidad abierta al cambio, inversión en ed
 
       return metadata
     } catch (err) {
-      console.warn('Error extracting metadata:', err)
+      logger.warn('Error extracting metadata', { data: err })
       return {}
     }
   }

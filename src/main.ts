@@ -2,118 +2,93 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
+import i18n from './i18n'
+import { logger } from './utils/logger'
 
 import './assets/main.css'
 
-// Función para detectar Puter.js
+// Configuración inicial
+const savedTheme = localStorage.getItem('nina-note-theme') || 'light'
+document.documentElement.setAttribute('data-theme', savedTheme)
+
+// Detectar Puter.js
 const detectPuterEnvironment = (): boolean => {
   return typeof window !== 'undefined' && !!(window as any).puter
 }
 
-// Configurar tema inicial
-const savedTheme = localStorage.getItem('nina-note-theme') || 'light'
-document.documentElement.setAttribute('data-theme', savedTheme)
+const initializeApp = async () => {
+  logger.info('🔥 Nina Note - Starting up...')
 
-// Log del entorno detectado
-const isPuterEnvironment = detectPuterEnvironment()
-console.log('🔥 Nina Note - Starting up...')
-console.log('Environment:', isPuterEnvironment ? 'Puter.js' : 'Development')
+  const isPuterEnvironment = detectPuterEnvironment()
+  logger.info('Environment detected', {
+    data: { environment: isPuterEnvironment ? 'Puter.js' : 'Development' },
+  })
 
-// Verificar que puter.js esté completamente cargado
-const checkPuterReady = async (): Promise<boolean> => {
-  const puter = (window as any).puter
-  if (!puter) return false
-
-  // Esperar a que las APIs críticas estén disponibles
-  const criticalApis = ['ai', 'net', 'auth']
-  for (const api of criticalApis) {
-    if (!puter[api]) {
-      console.warn(`Puter.js API ${api} not available`)
-      return false
-    }
-  }
-
-  return true
-}
-
-// Usar esta verificación en tu app
-const isPuterReady = isPuterEnvironment ? await checkPuterReady() : false
-
-console.log('Puter.js ready:', isPuterReady)
-
-// Después de detectar Puter.js, verificar autenticación
-if (isPuterEnvironment) {
-  console.log('✅ Puter.js detected - Full functionality available')
-
-  // Verificar autenticación
-  try {
-    const userInfo = await (window as any).puter.auth.getUser()
-    console.log('👤 User authenticated:', userInfo.username)
-  } catch (authError) {
-    console.warn('⚠️ User not authenticated. Some features may be limited.')
-    console.log('💡 Prompting user to sign in...')
-
-    // Opcional: iniciar autenticación automáticamente
-    try {
-      await (window as any).puter.auth.signIn()
-    } catch (signInError) {
-      console.log('User cancelled authentication or error occurred')
-    }
-  }
-}
-
-const app = createApp(App)
-
-// Añadir propiedad global para acceso fácil al estado de Puter
-app.config.globalProperties.$puterAvailable = isPuterEnvironment
-
-app.use(createPinia())
-app.use(router)
-
-app.mount('#app')
-
-// Verificar disponibilidad de APIs específicas después del montaje
-app.use(() => {
   if (isPuterEnvironment) {
+    await initializePuter()
+  }
+
+  const app = createApp(App)
+
+  app.use(i18n)
+  app.use(createPinia())
+  app.use(router)
+
+  app.mount('#app')
+
+  logger.success('Application mounted successfully')
+}
+
+const initializePuter = async (): Promise<void> => {
+  try {
     const puter = (window as any).puter
 
-    // Verificar APIs específicas
-    const apis = {
-      'AI Chat': !!puter?.ai?.chat,
-      'Network Fetch': !!puter?.net?.fetch,
-      'File System': !!puter?.fs,
-      'UI Components': !!puter?.ui,
+    // Verificar APIs críticas
+    const criticalApis = ['ai', 'net', 'auth']
+    const availableApis = criticalApis.filter((api) => !!puter[api])
+
+    if (availableApis.length !== criticalApis.length) {
+      logger.warn('Not all Puter.js APIs are available', {
+        data: {
+          available: availableApis,
+          missing: criticalApis.filter((api) => !availableApis.includes(api)),
+        },
+      })
     }
 
-    console.log('📋 Puter.js API Status:')
-    Object.entries(apis).forEach(([name, available]) => {
-      console.log(`  ${available ? '✅' : '❌'} ${name}`)
-    })
+    // Verificar autenticación
+    try {
+      const userInfo = await puter.auth.getUser()
+      logger.success('User authenticated', { data: { username: userInfo.username } })
+    } catch (authError) {
+      logger.warn('User not authenticated, some features may be limited')
 
-    // Advertencias si faltan APIs críticas
-    if (!apis['AI Chat']) {
-      console.warn('⚠️ puter.ai.chat not available - AI features will use fallbacks')
+      // Intentar autenticación automática
+      try {
+        await puter.auth.signIn()
+        logger.success('User authentication completed')
+      } catch (signInError) {
+        logger.warn('User authentication cancelled or failed')
+      }
     }
-    if (!apis['Network Fetch']) {
-      console.warn('⚠️ puter.net.fetch not available - Web scraping will use fallbacks')
-    }
+
+    logger.success('Puter.js initialized successfully')
+  } catch (error) {
+    logger.error('Failed to initialize Puter.js', { data: error })
   }
-})
+}
 
-// Error handler global para problemas de Puter.js
+// Manejo global de errores
 window.addEventListener('error', (event) => {
-  if (event.message?.includes('puter')) {
-    console.error('🚨 Puter.js Error:', event.message)
-    console.log('💡 Tip: Ensure you are running Nina Note in the Puter.js environment')
-  }
+  logger.error('Global error occurred', { data: event.error })
 })
 
-// Handler para errores de promesas no capturadas
 window.addEventListener('unhandledrejection', (event) => {
-  if (event.reason?.message?.includes('puter')) {
-    console.error('🚨 Puter.js Promise Rejection:', event.reason)
-    event.preventDefault() // Evita que aparezca en consola como error no manejado
-  }
+  logger.error('Unhandled promise rejection', { data: event.reason })
+  event.preventDefault()
 })
 
-export { isPuterEnvironment }
+// Inicializar la aplicación
+initializeApp().catch((error) => {
+  logger.error('Failed to initialize application', { data: error })
+})

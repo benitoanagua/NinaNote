@@ -4,6 +4,7 @@
     <header class="bg-surface shadow-sm border-b border-outlineVariant sticky top-0 z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
+          <!-- Sección izquierda: Logo y nombre -->
           <div class="flex items-center">
             <div
               class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center mr-3 shadow-md3"
@@ -25,21 +26,27 @@
             <h1 class="text-2xl font-semibold text-onSurface">Nina Note</h1>
           </div>
 
+          <!-- Sección central: Navegación -->
+          <nav class="flex items-center space-x-6">
+            <router-link
+              to="/"
+              class="text-onSurfaceVariant hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              :class="{ 'text-primary font-semibold': $route.name === 'home' }"
+            >
+              {{ $t('navigation.home') }}
+            </router-link>
+            <router-link
+              to="/history"
+              class="text-onSurfaceVariant hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              :class="{ 'text-primary font-semibold': $route.name === 'history' }"
+            >
+              {{ $t('navigation.history') }}
+            </router-link>
+          </nav>
+
+          <!-- Sección derecha: Controles -->
           <div class="flex items-center gap-4">
-            <nav class="flex space-x-4">
-              <router-link
-                to="/"
-                class="text-onSurfaceVariant hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Inicio
-              </router-link>
-              <router-link
-                to="/history"
-                class="text-onSurfaceVariant hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Historial
-              </router-link>
-            </nav>
+            <LanguageSelector />
             <ThemeToggle />
           </div>
         </div>
@@ -55,7 +62,7 @@
     <footer class="bg-surface border-t border-outlineVariant mt-12">
       <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <p class="text-center text-onSurfaceVariant text-sm">
-          Nina Note - Extrae la esencia de cualquier editorial
+          {{ $t('app.description') }}
         </p>
       </div>
     </footer>
@@ -66,6 +73,7 @@
 import { onMounted } from 'vue'
 import { useSessionStore } from '@/stores/session'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import LanguageSelector from '@/components/LanguageSelector.vue'
 
 const sessionStore = useSessionStore()
 
@@ -76,21 +84,13 @@ onMounted(() => {
 </script>
 
 <style>
-/* Mantener tus estilos personalizados pero adaptados a MD3 */
-.btn-primary {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primaryContainer) 100%);
-  --apply: text-onPrimary font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform
-    hover: scale-105 focus: outline-none focus: ring-2 focus: ring-primary disabled: opacity-50
-    disabled: cursor-not-allowed disabled: hover: scale-100;
+/* Estilos para enlaces activos */
+.router-link-active {
+  --apply: text-primary;
 }
 
-.btn-secondary {
-  --apply: bg-surfaceContainer border border-outline text-onSurface font-semibold py-2 px-4
-    rounded-lg transition-all duration-200 hover: bg-surfaceContainerHigh focus: outline-none
-    focus: ring-2 focus: ring-primary disabled: opacity-50 disabled: cursor-not-allowed;
-}
-
-.card {
-  --apply: bg-surfaceContainerHigh rounded-xl shadow-md3 border border-outlineVariant p-6;
+/* Transiciones suaves */
+.transition-all {
+  transition: all 0.2s ease-in-out;
 }
 </style>

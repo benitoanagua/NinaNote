@@ -1,0 +1,163 @@
+{
+  "app": {
+    "name": "Nina Note",
+    "description": "Extrae la esencia de cualquier editorial",
+    "tagline": "Convierte artículos largos en hilos de Twitter impactantes en segundos"
+  },
+
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "retry": "Reintentar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "confirm": "Confirmar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior"
+  },
+
+  "navigation": {
+    "home": "Inicio",
+    "history": "Historial",
+    "settings": "Configuración"
+  },
+
+  "home": {
+    "title": "Extrae la esencia de cualquier editorial",
+    "subtitle": "Convierte artículos largos en hilos de Twitter impactantes en segundos",
+    "urlInput": {
+      "label": "URL del editorial o artículo",
+      "placeholder": "https://ejemplo.com/editorial-interesante",
+      "error": {
+        "invalid": "URL no válida",
+        "invalidProtocol": "Solo se permiten URLs HTTP y HTTPS",
+        "invalidDomain": "La URL debe tener un dominio válido"
+      }
+    },
+    "submit": "Encender la chispa",
+    "examples": "Prueba con estos ejemplos:",
+    "compatibleSites": "Sitios web compatibles:"
+  },
+
+  "summary": {
+    "title": "Resumen Generado",
+    "subtitle": "Hilo de Twitter creado a partir del artículo",
+    "regenerateAll": "Regenerar todo",
+    "tweetsCount": "{count} tweets generados",
+    "charCount": "{count}/280 caracteres",
+    "editTweet": "Editar este tweet",
+    "regenerateTweet": "Regenerar este tweet",
+    "saveEdit": "Guardar",
+    "cancelEdit": "Cancelar",
+    "tweetTooLong": "Tweet demasiado largo",
+    "exceedsBy": "Excede por {count} caracteres"
+  },
+
+  "history": {
+    "title": "Historial de Hilos",
+    "subtitle": "Tus hilos generados recientemente",
+    "empty": "No hay hilos guardados todavía",
+    "createFirst": "Crear tu primer hilo",
+    "deleteConfirm": "¿Estás seguro de que quieres eliminar este hilo?",
+    "dateFormat": "{day} de {month} de {year} a las {time}"
+  },
+
+  "twitter": {
+    "title": "Publicar en Twitter",
+    "subtitle": "Comparte tu hilo directamente o cópialo al portapapeles",
+    "config": {
+      "title": "Configuración de Twitter API",
+      "description": "Para publicar directamente, necesitas un Bearer Token de la API de Twitter.",
+      "learnMore": "Aprende cómo obtenerlo aquí",
+      "tokenLabel": "Bearer Token de Twitter",
+      "tokenPlaceholder": "AAAA...",
+      "tokenHelp": "Tu token se guarda solo durante esta sesión y nunca se envía a nuestros servidores",
+      "tokenError": {
+        "invalid": "Token inválido. Debe comenzar con \"AAAA\" y tener más de 50 caracteres.",
+        "empty": "Por favor ingresa un token"
+      }
+    },
+    "publish": "Publicar Hilo",
+    "copy": "Copiar al Portapapeles",
+    "publishing": "Publicando...",
+    "success": {
+      "published": "¡Hilo publicado exitosamente! {count} tweets fueron publicados en tu cuenta de Twitter.",
+      "copied": "Hilo copiado al portapapeles. Puedes pegarlo manualmente en Twitter."
+    },
+    "validation": {
+      "noTweets": "No hay tweets para publicar",
+      "longTweets": "{count} tweet(s) exceden los 280 caracteres"
+    }
+  },
+
+  "ai": {
+    "status": {
+      "available": "IA disponible - Generación real activa",
+      "development": "Modo de Desarrollo",
+      "developmentDescription": "Tweets generados con contenido de ejemplo. Para IA real, ejecuta en entorno Puter.js."
+    },
+    "models": {
+      "title": "Modelos disponibles",
+      "count": "Ver modelos ({count})"
+    }
+  },
+
+  "errors": {
+    "generic": "Ha ocurrido un error inesperado",
+    "network": "Error de conexión",
+    "timeout": "Tiempo de espera agotado",
+    "unauthorized": "No autorizado",
+    "forbidden": "Acceso denegado",
+    "notFound": "Recurso no encontrado",
+
+    "scraping": {
+      "failed": "Error al procesar la URL",
+      "noContent": "No se pudo extraer suficiente contenido del artículo",
+      "invalidUrl": "No se pudo acceder a la URL. Verifica que sea correcta y accesible.",
+      "parseError": "Error al procesar el contenido HTML de la página.",
+      "serverError": "Error del servidor: {message}",
+      "puterRequired": "Puter.js no está disponible. Esta funcionalidad requiere ejecutarse en el entorno Puter."
+    },
+
+    "ai": {
+      "noResponse": "No se recibió contenido válido del modelo de IA",
+      "invalidTweets": "El modelo no generó tweets válidos",
+      "generationFailed": "Error al generar el hilo",
+      "regenerationFailed": "Error al regenerar el tweet"
+    },
+
+    "twitter": {
+      "postFailed": "Error al publicar el hilo en Twitter",
+      "copyFailed": "Error al copiar al portapapeles",
+      "apiError": "Error de la API de Twitter: {message}"
+    }
+  },
+
+  "success": {
+    "scraping": "Contenido extraído exitosamente",
+    "aiGeneration": "Hilo generado exitosamente",
+    "tweetRegenerated": "Tweet regenerado exitosamente"
+  },
+
+  "dates": {
+    "months": {
+      "january": "enero",
+      "february": "febrero",
+      "march": "marzo",
+      "april": "abril",
+      "may": "mayo",
+      "june": "junio",
+      "july": "julio",
+      "august": "agosto",
+      "september": "septiembre",
+      "october": "octubre",
+      "november": "noviembre",
+      "december": "diciembre"
+    }
+  }
+}
