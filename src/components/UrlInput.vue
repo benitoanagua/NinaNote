@@ -76,8 +76,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useScraper } from '@/composables/useScraper'
-import { logger } from '@/utils/logger'
-import { handleError } from '@/utils/errorHandler'
+import { logger, handleError, translateError } from '@/utils/logger'
 import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
@@ -94,30 +93,74 @@ const urlError = ref<string | null>(null)
 const handleSubmit = async () => {
   urlError.value = null
 
+  logger.info('Starting URL validation', { context: 'UrlInput' })
+
   const validation = validateUrl(urlInput.value)
   if (!validation.isValid) {
     urlError.value = validation.error || t('home.urlInput.error.invalid')
+    logger.warn(`URL validation failed: ${urlError.value}`, {
+      context: 'UrlInput',
+      data: { url: urlInput.value },
+    })
     emit('error', urlError.value)
     return
   }
 
+  logger.info('URL validation passed', {
+    context: 'UrlInput',
+    data: { url: urlInput.value },
+  })
+
   try {
     logger.info('Starting URL processing', { context: 'UrlInput' })
+    logger.info(`Scraping content from: ${urlInput.value}`, { context: 'UrlInput' })
 
     const contentResult = await scrapeContent(urlInput.value)
     const content = contentResult.content
 
+    logger.debug('Content scraped successfully', {
+      context: 'UrlInput',
+      data: {
+        contentLength: content.length,
+        title: contentResult.title,
+        imageCount: contentResult.images?.length || 0,
+      },
+    })
+
     if (!content || content.trim().length < 100) {
       urlError.value = t('errors.scraping.noContent')
+      logger.warn('Not enough content extracted from URL', {
+        context: 'UrlInput',
+        data: {
+          contentLength: content?.length,
+          url: urlInput.value,
+        },
+      })
       emit('error', urlError.value)
       return
     }
 
-    logger.success('URL processed successfully', { context: 'UrlInput' })
+    logger.success('URL processed successfully', {
+      context: 'UrlInput',
+      data: {
+        contentLength: content.length,
+        hasImages: (contentResult.images?.length || 0) > 0,
+      },
+    })
+
     emit('scraped', urlInput.value, content)
   } catch (err) {
     const appError = handleError(err, 'UrlInput')
-    urlError.value = appError.message
+    urlError.value = translateError(appError)
+
+    logger.error(`URL processing failed: ${appError.message}`, {
+      context: 'UrlInput',
+      data: {
+        error: err,
+        url: urlInput.value,
+      },
+    })
+
     emit('error', appError)
   }
 }

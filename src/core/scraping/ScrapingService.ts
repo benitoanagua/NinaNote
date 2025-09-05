@@ -1,7 +1,7 @@
 import { Readability } from '@mozilla/readability'
 import type { ScrapedContent } from '../types'
 import { BaseService } from '../base/BaseService'
-import { ErrorFactory } from '@/utils/errorHandler'
+import { logger, ErrorFactory } from '@/utils/logger'
 
 export class ScrapingService extends BaseService {
   constructor() {
@@ -10,6 +10,8 @@ export class ScrapingService extends BaseService {
 
   async scrapeContent(url: string): Promise<ScrapedContent> {
     this.logStart(`Scraping content from ${url}`)
+    logger.scraping.start(url)
+
     try {
       this.validateUrl(url)
 
@@ -17,9 +19,11 @@ export class ScrapingService extends BaseService {
       const content = this.extractContent(html, url)
 
       this.logSuccess(`Scraped ${content.content.length} characters`)
+      logger.scraping.success(content.content.length)
       return content
     } catch (error) {
       this.logError('Failed to scrape content', error)
+      logger.scraping.error(error instanceof Error ? error : new Error(String(error)))
       throw ErrorFactory.scraping(
         error instanceof Error ? error.message : 'Failed to scrape content',
         error instanceof Error ? error : undefined,
@@ -35,6 +39,7 @@ export class ScrapingService extends BaseService {
       return this.extractRelevantImages(doc)
     } catch (error) {
       this.logError('Failed to extract images', error)
+      logger.scraping.error(error instanceof Error ? error : new Error(String(error)))
       throw ErrorFactory.scraping(
         'Failed to extract images from URL',
         error instanceof Error ? error : undefined,

@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { googleGenAIService } from '@/core/ai/GoogleGenAIService'
 import type { ThreadTweet } from '@/core/types'
-import { handleError, translateError, ErrorFactory } from '@/utils/errorHandler'
+import { logger, handleError, translateError } from '@/utils/logger'
 
 export const useGoogleGenAI = () => {
   const isGenerating = ref(false)
@@ -10,11 +10,43 @@ export const useGoogleGenAI = () => {
   const generateThread = async (text: string, images: string[] = []): Promise<ThreadTweet[]> => {
     isGenerating.value = true
     error.value = null
+
+    logger.info('Starting thread generation process', {
+      context: 'useGoogleGenAI',
+      data: { textLength: text.length, imageCount: images.length },
+    })
+
     try {
-      return await googleGenAIService.generateThread(text, images)
+      logger.debug('Calling Google Gemini API for thread generation', {
+        context: 'useGoogleGenAI',
+        data: { textPreview: text.substring(0, 100) + '...' },
+      })
+
+      const result = await googleGenAIService.generateThread(text, images)
+
+      logger.success('Thread generation completed successfully', {
+        context: 'useGoogleGenAI',
+        data: {
+          tweetCount: result.length,
+          totalCharacters: result.reduce((sum, t) => sum + t.charCount, 0),
+          imagesUsed: result.filter((t) => t.imageUrl).length,
+        },
+      })
+
+      return result
     } catch (e: any) {
-      const appError = handleError(e, 'GoogleGenAI')
+      const appError = handleError(e, 'useGoogleGenAI')
       error.value = translateError(appError)
+
+      logger.error('Thread generation failed', {
+        context: 'useGoogleGenAI',
+        data: {
+          error: appError.message,
+          textLength: text.length,
+          originalError: e,
+        },
+      })
+
       throw appError
     } finally {
       isGenerating.value = false
@@ -22,19 +54,108 @@ export const useGoogleGenAI = () => {
   }
 
   const regenerateTweet = async (originalText: string, tweetIndex: number): Promise<string> => {
+    logger.info('Regenerating single tweet', {
+      context: 'useGoogleGenAI',
+      data: { tweetIndex, textLength: originalText.length },
+    })
+
     try {
-      return await googleGenAIService.regenerateTweet(originalText, tweetIndex)
+      logger.debug('Calling Google Gemini API for tweet regeneration', {
+        context: 'useGoogleGenAI',
+        data: { tweetIndex, textPreview: originalText.substring(0, 50) + '...' },
+      })
+
+      const result = await googleGenAIService.regenerateTweet(originalText, tweetIndex)
+
+      logger.success('Tweet regeneration completed', {
+        context: 'useGoogleGenAI',
+        data: {
+          tweetIndex,
+          newLength: result.length,
+          originalLength: originalText.length,
+        },
+      })
+
+      return result
     } catch (e: any) {
-      throw ErrorFactory.ai('Error regenerando tweet', e)
+      const appError = handleError(e, 'useGoogleGenAI')
+
+      logger.error('Tweet regeneration failed', {
+        context: 'useGoogleGenAI',
+        data: {
+          error: appError.message,
+          tweetIndex,
+          originalError: e,
+        },
+      })
+
+      throw appError
     }
   }
 
   const checkAvailability = async (): Promise<boolean> => {
-    return await googleGenAIService.checkAvailability()
+    logger.info('Checking Google Gemini API availability', { context: 'useGoogleGenAI' })
+
+    try {
+      const isAvailable = await googleGenAIService.checkAvailability()
+
+      if (isAvailable) {
+        logger.success('Google Gemini API is available', { context: 'useGoogleGenAI' })
+      } else {
+        logger.warn('Google Gemini API is not available', { context: 'useGoogleGenAI' })
+      }
+
+      return isAvailable
+    } catch (e: any) {
+      const appError = handleError(e, 'useGoogleGenAI')
+
+      logger.error('Failed to check API availability', {
+        context: 'useGoogleGenAI',
+        data: { error: appError.message },
+      })
+
+      return false
+    }
   }
 
   const getAvailableModels = async () => {
-    return await googleGenAIService.getAvailableModels()
+    logger.info('Fetching available AI models', { context: 'useGoogleGenAI' })
+
+    try {
+      const models = await googleGenAIService.getAvailableModels()
+
+      logger.success('Available models retrieved', {
+        context: 'useGoogleGenAI',
+        data: { modelCount: models.length },
+      })
+
+      return models
+    } catch (e: any) {
+      const appError = handleError(e, 'useGoogleGenAI')
+
+      logger.error('Failed to get available models', {
+        context: 'useGoogleGenAI',
+        data: { error: appError.message },
+      })
+
+      throw appError
+    }
+  }
+
+  const clearError = () => {
+    if (error.value) {
+      logger.info('Clearing previous error', {
+        context: 'useGoogleGenAI',
+        data: { previousError: error.value },
+      })
+    }
+    error.value = null
+  }
+
+  const resetState = () => {
+    clearError()
+    isGenerating.value = false
+    logger.info('Composable state reset', { context: 'useGoogleGenAI' })
   }
 
   return {
@@ -42,6 +163,8 @@ export const useGoogleGenAI = () => {
     regenerateTweet,
     checkAvailability,
     getAvailableModels,
+    clearError,
+    resetState,
     isGenerating,
     error,
   }

@@ -1,6 +1,6 @@
 <template>
   <div class="bg-surfaceContainerHigh rounded-xl p-6 shadow-md3">
-    <!-- Cambiar el mensaje de desarrollo -->
+    <!-- Estado de disponibilidad de IA -->
     <div
       v-if="!aiAvailable"
       class="mb-4 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-4"
@@ -28,49 +28,8 @@
       </div>
     </div>
 
-    <div v-else class="mb-4 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center">
-          <svg
-            class="w-4 h-4 text-primary mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-          <span class="text-primary text-sm font-medium">{{ $t('ai.status.available') }}</span>
-        </div>
-        <button
-          v-if="availableModels.length > 0"
-          @click="showModelInfo = !showModelInfo"
-          class="text-primary text-xs underline hover:no-underline"
-        >
-          {{ $t('ai.models.count', { count: availableModels.length }) }}
-        </button>
-      </div>
-
-      <div
-        v-if="showModelInfo && availableModels.length > 0"
-        class="mt-2 pt-2 border-t border-primaryContainer"
-      >
-        <p class="text-primary text-xs mb-1">{{ $t('ai.models.title') }}:</p>
-        <div class="flex flex-wrap gap-1">
-          <span
-            v-for="model in availableModels"
-            :key="model.id"
-            class="text-xs bg-primary text-onPrimary px-2 py-1 rounded"
-          >
-            {{ model.name }}
-          </span>
-        </div>
-      </div>
-    </div>
+    <!-- Terminal Loader durante la generación -->
+    <TerminalLoader v-if="isGenerating" :is-loading="isGenerating" class="mb-6" />
 
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center">
@@ -112,7 +71,7 @@
       </button>
     </div>
 
-    <div class="space-y-4">
+    <div v-if="!isGenerating && tweets.length > 0" class="space-y-4">
       <div
         v-for="(tweet, index) in tweets"
         :key="tweet.id"
@@ -189,9 +148,6 @@
               class="rounded-lg w-full h-48 object-cover shadow-sm"
               @error="handleImageError(tweet, index)"
             />
-            <p class="text-xs text-onSurfaceVariant mt-1 text-center">
-              Imagen {{ index + 1 }} de {{ tweets.length }}
-            </p>
           </div>
 
           <div v-else class="space-y-2">
@@ -274,9 +230,27 @@
       </div>
     </div>
 
+    <!-- Estado cuando no hay tweets (solo terminal) -->
+    <div v-else-if="!isGenerating" class="text-center py-8 text-onSurfaceVariant">
+      <svg
+        class="w-12 h-12 mx-auto mb-4 opacity-50"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="1"
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+      <p>Esperando generación de contenido...</p>
+    </div>
+
     <!-- Estado de carga global -->
     <div
-      v-if="isRegenerating"
+      v-if="isRegenerating && !isGenerating"
       class="mt-6 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-4"
     >
       <div class="flex items-center justify-center">
@@ -288,12 +262,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
 import type { ThreadTweet } from '@/core/types'
-import type { AIModel } from '@/core/types'
 import { useGoogleGenAI } from '@/composables/useGoogleGenAI'
 import { ImageUtils } from '@/core/utils/imageUtils'
 import { ImageGenerator } from '@/core/utils/imageGenerator'
+import TerminalLoader from './TerminalLoader.vue'
+import { logger } from '@/utils/logger'
 
 interface Props {
   tweets: ThreadTweet[]
@@ -310,7 +285,6 @@ const {
   regenerateTweet: regenerateSingleTweet,
   generateThread,
   checkAvailability,
-  getAvailableModels,
   isGenerating,
 } = useGoogleGenAI()
 
@@ -319,8 +293,6 @@ const regeneratingIndex = ref<number | null>(null)
 const editingIndex = ref<number | null>(null)
 const editingContent = ref('')
 const aiAvailable = ref(false)
-const availableModels = ref<AIModel[]>([])
-const showModelInfo = ref(false)
 
 // Método para obtener etiqueta de tamaño del hilo
 const getThreadSizeLabel = () => {
@@ -331,12 +303,28 @@ const getThreadSizeLabel = () => {
 
 const regenerateAll = async () => {
   isRegenerating.value = true
+  logger.info('Iniciando regeneración completa del hilo', { context: 'ThreadPreview' })
+
   try {
     // Extraer las imágenes actuales de los tweets para mantenerlas
     const currentImages = props.tweets.map((tweet) => tweet.imageUrl || '')
+    logger.debug('Imágenes actuales extraídas', {
+      context: 'ThreadPreview',
+      data: { imageCount: currentImages.filter((img) => img).length },
+    })
+
     const newTweets = await generateThread(props.originalContent, currentImages)
+    logger.success('Hilo regenerado exitosamente', {
+      context: 'ThreadPreview',
+      data: { tweetCount: newTweets.length },
+    })
+
     emit('tweetsUpdated', newTweets)
   } catch (error) {
+    logger.error('Error al regenerar el hilo', {
+      context: 'ThreadPreview',
+      data: error,
+    })
     console.error('Error regenerating thread:', error)
   } finally {
     isRegenerating.value = false
@@ -345,6 +333,8 @@ const regenerateAll = async () => {
 
 const regenerateTweet = async (index: number) => {
   regeneratingIndex.value = index
+  logger.info(`Regenerando tweet ${index + 1}`, { context: 'ThreadPreview' })
+
   try {
     const newContent = await regenerateSingleTweet(props.originalContent, index)
     const updatedTweets = [...props.tweets]
@@ -353,8 +343,18 @@ const regenerateTweet = async (index: number) => {
       content: newContent,
       charCount: newContent.length,
     }
+
+    logger.success(`Tweet ${index + 1} regenerado`, {
+      context: 'ThreadPreview',
+      data: { newLength: newContent.length },
+    })
+
     emit('tweetsUpdated', updatedTweets)
   } catch (error) {
+    logger.error(`Error regenerando tweet ${index + 1}`, {
+      context: 'ThreadPreview',
+      data: error,
+    })
     console.error('Error regenerating tweet:', error)
   } finally {
     regeneratingIndex.value = null
@@ -364,11 +364,13 @@ const regenerateTweet = async (index: number) => {
 const editTweet = (index: number) => {
   editingIndex.value = index
   editingContent.value = props.tweets[index].content
+  logger.info(`Editando tweet ${index + 1}`, { context: 'ThreadPreview' })
 }
 
 const cancelEdit = () => {
   editingIndex.value = null
   editingContent.value = ''
+  logger.info('Edición cancelada', { context: 'ThreadPreview' })
 }
 
 const saveEdit = (index: number) => {
@@ -378,12 +380,23 @@ const saveEdit = (index: number) => {
     content: editingContent.value,
     charCount: editingContent.value.length,
   }
+
+  logger.info(`Tweet ${index + 1} guardado`, {
+    context: 'ThreadPreview',
+    data: { newLength: editingContent.value.length },
+  })
+
   emit('tweetsUpdated', updatedTweets)
   cancelEdit()
 }
 
 // Manejar errores de carga de imágenes
 const handleImageError = async (tweet: ThreadTweet, index: number) => {
+  logger.warn(`Error loading image for tweet ${index + 1}`, {
+    context: 'ThreadPreview',
+    data: { imageUrl: tweet.imageUrl },
+  })
+
   try {
     if (tweet.imageUrl && !tweet.imageUrl.startsWith('data:image/')) {
       const generatedImage = await ImageGenerator.generateNumberedImage(
@@ -392,23 +405,60 @@ const handleImageError = async (tweet: ThreadTweet, index: number) => {
         tweet.imageUrl,
       )
       tweet.imageUrl = generatedImage
+      logger.info(`Imagen regenerada para tweet ${index + 1}`, { context: 'ThreadPreview' })
     }
   } catch (error) {
+    logger.error('Error generating image', {
+      context: 'ThreadPreview',
+      data: error,
+    })
     console.error('Error generating image:', error)
     // Generar imagen de fallback
-    tweet.imageUrl = await ImageGenerator.generateNumberedImage(index, props.tweets.length)
+    try {
+      tweet.imageUrl = await ImageGenerator.generateNumberedImage(index, props.tweets.length)
+      logger.info(`Imagen de fallback generada para tweet ${index + 1}`, {
+        context: 'ThreadPreview',
+      })
+    } catch (fallbackError) {
+      logger.error('Error generating fallback image', {
+        context: 'ThreadPreview',
+        data: fallbackError,
+      })
+    }
   }
 }
+
+// Estadísticas del hilo para logging
+const threadStats = computed(() => {
+  const longTweets = props.tweets.filter((t) => t.charCount > 280).length
+  const totalChars = props.tweets.reduce((sum, t) => sum + t.charCount, 0)
+  const avgChars = props.tweets.length > 0 ? Math.round(totalChars / props.tweets.length) : 0
+
+  return {
+    longTweets,
+    totalChars,
+    avgChars,
+    hasImages: props.tweets.some((t) => t.imageUrl),
+  }
+})
 
 onMounted(async () => {
   aiAvailable.value = await checkAvailability()
 
   if (aiAvailable.value) {
-    try {
-      availableModels.value = await getAvailableModels()
-    } catch (error) {
-      console.warn('Error getting available models:', error)
-    }
+    logger.info('IA disponible - Conectado a Google Gemini', { context: 'AI' })
+  } else {
+    logger.warn('IA no disponible - Verificar configuración de API', { context: 'AI' })
+  }
+
+  // Esperar a que el terminal loader se monte
+  await nextTick()
+
+  if (props.tweets.length > 0) {
+    logger.success(`Hilo generado con ${props.tweets.length} tweets`, {
+      context: 'ThreadPreview',
+      data: threadStats.value,
+    })
   }
 })
 </script>
