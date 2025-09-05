@@ -1,34 +1,63 @@
 export class ImageGenerator {
-  static generateNumberedImage(index: number, total: number, baseColor?: string): string {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
+  static generateNumberedImage(
+    index: number,
+    total: number,
+    baseImageUrl?: string,
+  ): Promise<string> {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
 
-    if (!ctx) return ''
+      if (!ctx) {
+        resolve('')
+        return
+      }
 
-    // Tamaño del canvas
-    canvas.width = 600
-    canvas.height = 400
+      // Tamaño del canvas
+      canvas.width = 600
+      canvas.height = 400
 
-    // Color de fondo (usar el proporcionado o uno por defecto)
-    const backgroundColor = baseColor || this.getColorForIndex(index)
+      const drawFinalImage = () => {
+        // Color de fondo con transparencia del 75%
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Dibujar fondo
-    ctx.fillStyle = backgroundColor
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+        // Dibujar número grande en el centro (horizontal y vertical)
+        ctx.fillStyle = '#FFFFFF'
+        ctx.font = 'bold 120px Arial'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText((index + 1).toString(), canvas.width / 2, canvas.height / 2)
 
-    // Dibujar número grande en el centro
-    ctx.fillStyle = '#FFFFFF'
-    ctx.font = 'bold 120px Arial'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText((index + 1).toString(), canvas.width / 2, canvas.height / 2 - 20)
+        // Devolver la imagen como data URL
+        resolve(canvas.toDataURL('image/jpeg'))
+      }
 
-    // Dibujar texto pequeño debajo
-    ctx.font = '20px Arial'
-    ctx.fillText(`Tweet ${index + 1} de ${total}`, canvas.width / 2, canvas.height / 2 + 60)
-
-    // Devolver la imagen como data URL
-    return canvas.toDataURL('image/jpeg')
+      if (baseImageUrl) {
+        // Si hay una imagen base, cargarla primero
+        const img = new Image()
+        img.crossOrigin = 'Anonymous'
+        img.onload = () => {
+          // Dibujar la imagen base
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          drawFinalImage()
+        }
+        img.onerror = () => {
+          // Si falla la carga de la imagen base, usar color sólido
+          const backgroundColor = this.getColorForIndex(index)
+          ctx.fillStyle = backgroundColor
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          drawFinalImage()
+        }
+        img.src = baseImageUrl
+      } else {
+        // Si no hay imagen base, usar color sólido
+        const backgroundColor = this.getColorForIndex(index)
+        ctx.fillStyle = backgroundColor
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        drawFinalImage()
+      }
+    })
   }
 
   private static getColorForIndex(index: number): string {
@@ -62,19 +91,15 @@ export class ImageGenerator {
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     // Añadir capa semi-transparente
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Dibujar número
+    // Dibujar número centrado
     ctx.fillStyle = '#FFFFFF'
     ctx.font = 'bold 120px Arial'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText((index + 1).toString(), canvas.width / 2, canvas.height / 2 - 20)
-
-    // Dibujar texto
-    ctx.font = '20px Arial'
-    ctx.fillText(`Parte ${index + 1} de ${total}`, canvas.width / 2, canvas.height / 2 + 60)
+    ctx.fillText((index + 1).toString(), canvas.width / 2, canvas.height / 2)
 
     return canvas.toDataURL('image/jpeg')
   }

@@ -293,6 +293,7 @@ import type { ThreadTweet } from '@/core/types'
 import type { AIModel } from '@/core/types'
 import { useGoogleGenAI } from '@/composables/useGoogleGenAI'
 import { ImageUtils } from '@/core/utils/imageUtils'
+import { ImageGenerator } from '@/core/utils/imageGenerator'
 
 interface Props {
   tweets: ThreadTweet[]
@@ -382,9 +383,21 @@ const saveEdit = (index: number) => {
 }
 
 // Manejar errores de carga de imágenes
-const handleImageError = (tweet: ThreadTweet, index: number) => {
-  // Reemplazar con imagen generada localmente si la imagen falla
-  tweet.imageUrl = ImageUtils.getGeneratedImage(index, props.tweets.length)
+const handleImageError = async (tweet: ThreadTweet, index: number) => {
+  try {
+    if (tweet.imageUrl && !tweet.imageUrl.startsWith('data:image/')) {
+      const generatedImage = await ImageGenerator.generateNumberedImage(
+        index,
+        props.tweets.length,
+        tweet.imageUrl,
+      )
+      tweet.imageUrl = generatedImage
+    }
+  } catch (error) {
+    console.error('Error generating image:', error)
+    // Generar imagen de fallback
+    tweet.imageUrl = await ImageGenerator.generateNumberedImage(index, props.tweets.length)
+  }
 }
 
 onMounted(async () => {

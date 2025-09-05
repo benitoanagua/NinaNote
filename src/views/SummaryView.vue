@@ -51,7 +51,7 @@ import TwitterPublish from '@/components/TwitterPublish.vue'
 import type { ThreadTweet } from '@/core/types'
 
 const route = useRoute()
-const { scrapeTextWithImages } = useScraper()
+const { scrapeContent } = useScraper()
 const { generateThread } = useGoogleGenAI()
 
 const tweets = ref<ThreadTweet[]>([])
@@ -69,15 +69,16 @@ onMounted(async () => {
     const url = decodeURIComponent(route.query.url as string)
     console.log('📄 Processing article from URL:', url)
 
-    // 1. Scraping clásico (fetch + Readability)
-    const { content, images } = await scrapeTextWithImages(url)
-    articleContent.value = content
-    articleImages.value = images
-    console.log('📝 Article content length:', content.length)
-    console.log('🖼️ Extracted images:', images.length)
+    // 1. Scraping del contenido
+    const contentResult = await scrapeContent(url)
+    articleContent.value = contentResult.content
+    articleImages.value = contentResult.images || []
+
+    console.log('📝 Article content length:', contentResult.content.length)
+    console.log('🖼️ Extracted images:', articleImages.value.length)
 
     // 2. Generar hilo con Google IA
-    const generatedTweets = await generateThread(content, images)
+    const generatedTweets = await generateThread(contentResult.content, articleImages.value)
     tweets.value = generatedTweets
     console.log('🐦 Tweets generated with images:', generatedTweets.length)
   } catch (error) {

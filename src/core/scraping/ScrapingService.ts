@@ -2,7 +2,6 @@ import { Readability } from '@mozilla/readability'
 import type { ScrapedContent } from '../types'
 import { BaseService } from '../base/BaseService'
 import { MOCK_CONTENT } from '../ai/PromptTemplate'
-import { ImageUtils } from '../utils/imageUtils'
 
 export class ScrapingService extends BaseService {
   constructor() {
@@ -14,7 +13,6 @@ export class ScrapingService extends BaseService {
     try {
       this.validateUrl(url)
 
-      // 🔥 SCRAPING REAL CON FETCH NATIVO
       const html = await this.fetchHtml(url)
       const content = this.extractContent(html, url)
 
@@ -22,7 +20,6 @@ export class ScrapingService extends BaseService {
       return content
     } catch (error) {
       this.logError('Failed to scrape content', error)
-      // Fallback siempre disponible
       return this.getMockContent(url)
     }
   }
@@ -30,13 +27,12 @@ export class ScrapingService extends BaseService {
   async extractImages(url: string): Promise<string[]> {
     try {
       const html = await this.fetchHtml(url)
-      const doc = new DOMParser().parseFromString(html, 'text/html')
-      const images = ImageUtils.extractAllImages(doc)
-      this.logSuccess(`Extracted ${images.length} images`)
-      return images
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(html, 'text/html')
+      return this.extractRelevantImages(doc)
     } catch (error) {
       this.logError('Failed to extract images', error)
-      return this.getMockImages()
+      return []
     }
   }
 
@@ -50,7 +46,6 @@ export class ScrapingService extends BaseService {
     }
   }
 
-  // 🔥 FETCH NATIVO - SIN PUTER
   private async fetchHtml(url: string): Promise<string> {
     const res = await fetch(url, {
       headers: {
@@ -63,7 +58,8 @@ export class ScrapingService extends BaseService {
   }
 
   private extractContent(html: string, url: string): ScrapedContent {
-    const doc = new DOMParser().parseFromString(html, 'text/html')
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
     this.removeUnwantedElements(doc)
 
     const reader = new Readability(doc)
@@ -73,7 +69,7 @@ export class ScrapingService extends BaseService {
     const textContent = article.textContent || ''
     if (textContent.length < 200) throw new Error('Extracted content too short')
 
-    const images = ImageUtils.extractAllImages(doc)
+    const images = this.extractRelevantImages(doc)
 
     return {
       url,
@@ -84,6 +80,52 @@ export class ScrapingService extends BaseService {
       publishedDate: undefined,
       image: images[0] || undefined,
       images,
+    }
+  }
+
+  private extractRelevantImages(doc: Document): string[] {
+    const images: string[] = []
+
+    // 1. Extraer Open Graph image
+    const ogImage = doc.querySelector('meta[property="og:image"]')
+    if (ogImage && ogImage.getAttribute('content')) {
+      const imageUrl = ogImage.getAttribute('content')!
+      if (this.isValidImageUrl(imageUrl)) {
+        images.push(imageUrl)
+      }
+    }
+
+    // 2. Extraer Twitter image
+    const twitterImage = doc.querySelector('meta[name="twitter:image"]')
+    if (twitterImage && twitterImage.getAttribute('content')) {
+      const imageUrl = twitterImage.getAttribute('content')!
+      if (this.isValidImageUrl(imageUrl)) {
+        images.push(imageUrl)
+      }
+    }
+
+    // 3. Extraer imágenes del contenido principal (solo las más grandes)
+    const contentImages = Array.from(doc.querySelectorAll('img'))
+      .map((img) => img.src)
+      .filter((src) => this.isValidImageUrl(src))
+      .slice(0, 5)
+
+    images.push(...contentImages)
+
+    return Array.from(new Set(images)) // Eliminar duplicados
+  }
+
+  private isValidImageUrl(url: string): boolean {
+    if (!url) return false
+    if (url.startsWith('data:image/')) return true
+
+    try {
+      new URL(url)
+
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif']
+      return imageExtensions.some((ext) => url.toLowerCase().includes(ext))
+    } catch {
+      return false
     }
   }
 
@@ -121,13 +163,8 @@ export class ScrapingService extends BaseService {
       excerpt: 'Análisis sobre transformación digital',
       author: 'Autor de Ejemplo',
       publishedDate: new Date().toISOString(),
-      images: this.getMockImages(),
+      images: [],
     }
-  }
-
-  private getMockImages(): string[] {
-    // Ya no necesitamos imágenes mock externas
-    return []
   }
 }
 

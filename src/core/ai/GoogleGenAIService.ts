@@ -2,7 +2,7 @@ import { GoogleGenAI } from '@google/genai'
 import type { AIModel, ThreadTweet } from '../types'
 import { BaseService } from '../base/BaseService'
 import { PROMPT_TEMPLATES, PromptEngine } from './PromptTemplate'
-import { ImageUtils } from '../utils/imageUtils'
+import { ImageGenerator } from '../utils/imageGenerator'
 
 export class GoogleGenAIService extends BaseService {
   private ai: GoogleGenAI
@@ -38,14 +38,13 @@ export class GoogleGenAIService extends BaseService {
   async generateThread(text: string, images: string[] = []): Promise<ThreadTweet[]> {
     this.logStart('Generating thread with Gemini')
 
-    // Determinar el número de tweets según la longitud del texto
     const textLength = text.length
-    let tweetCount = 4 // Valor por defecto
+    let tweetCount = 4
 
     if (textLength < 800) {
-      tweetCount = 3 // Texto corto: 3 tweets
+      tweetCount = 3
     } else if (textLength > 2000) {
-      tweetCount = 5 // Texto largo: 5 tweets
+      tweetCount = 5
     }
 
     const prompt = PromptEngine.compile(PROMPT_TEMPLATES.GENERATE_THREAD, {
@@ -66,10 +65,8 @@ export class GoogleGenAIService extends BaseService {
       .filter((l) => l.length > 0)
       .slice(0, tweetCount)
 
-    // Distribuir las imágenes entre los tweets
-    const distributedImages = ImageUtils.distributeImagesForTweets(images, tweetCount)
+    const distributedImages = await this.distributeImages(images, tweetCount)
 
-    // Crear los tweets con sus imágenes
     const tweets = tweetContents.map((content, i) => ({
       id: `tweet-${Date.now()}-${i}`,
       content,
@@ -79,6 +76,27 @@ export class GoogleGenAIService extends BaseService {
 
     this.logSuccess(`Generated ${tweets.length} tweets`)
     return tweets
+  }
+
+  private async distributeImages(availableImages: string[], tweetCount: number): Promise<string[]> {
+    const distributedImages: string[] = []
+
+    for (let i = 0; i < tweetCount; i++) {
+      if (i < availableImages.length) {
+        // Usar imagen real del artículo
+        distributedImages.push(availableImages[i])
+      } else if (availableImages.length > 0) {
+        // Generar imagen con overlay usando la primera imagen como base
+        const image = await ImageGenerator.generateNumberedImage(i, tweetCount, availableImages[0])
+        distributedImages.push(image)
+      } else {
+        // Generar imagen con color sólido
+        const image = await ImageGenerator.generateNumberedImage(i, tweetCount)
+        distributedImages.push(image)
+      }
+    }
+
+    return distributedImages
   }
 
   async regenerateTweet(originalText: string, tweetIndex: number): Promise<string> {
@@ -98,5 +116,4 @@ export class GoogleGenAIService extends BaseService {
   }
 }
 
-// Singleton seguro
 export const googleGenAIService = new GoogleGenAIService(import.meta.env.VITE_GEMINI_API_KEY || '')

@@ -25,43 +25,6 @@ export const useScraper = () => {
     }
   }
 
-  const extractImages = async (url: string): Promise<string[]> => {
-    try {
-      const images = await scrapingService.extractImages(url)
-      logger.success(`Extracted ${images.length} images from ${url}`)
-      return images
-    } catch (err) {
-      logger.warn('Error extracting images, using fallback', { data: err })
-      return [] // Devolver array vacío en caso de error
-    }
-  }
-
-  const scrapeTextWithImages = async (
-    url: string,
-  ): Promise<{ content: string; images: string[] }> => {
-    isLoading.value = true
-    error.value = null
-
-    try {
-      // Ejecutar scraping de contenido e imágenes en paralelo
-      const [contentResult, images] = await Promise.all([
-        scrapingService.scrapeContent(url),
-        scrapingService.extractImages(url).catch(() => []), // Si falla, usar array vacío
-      ])
-
-      return {
-        content: contentResult.content,
-        images: images,
-      }
-    } catch (err) {
-      const appError = handleError(err, 'Scraper')
-      error.value = appError.message
-      throw appError
-    } finally {
-      isLoading.value = false
-    }
-  }
-
   const validateUrl = (url: string): { isValid: boolean; error?: string } => {
     try {
       scrapingService.validateUrl(url)
@@ -87,8 +50,6 @@ export const useScraper = () => {
 
   return {
     scrapeContent,
-    extractImages,
-    scrapeTextWithImages,
     validateUrl,
     validateContentLength,
     isLoading,
