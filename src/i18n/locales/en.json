@@ -134,6 +134,7 @@
     "scraping": {
       "failed": "Error processing URL",
       "noContent": "Could not extract enough content from the article",
+      "minimumContent": "The article doesn't have enough text to create a thread. Minimum 300 characters required.",
       "invalidUrl": "Could not access the URL. Please verify it's correct and accessible.",
       "parseError": "Error processing HTML content of the page.",
       "serverError": "Server error: {message}",

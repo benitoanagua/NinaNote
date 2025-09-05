@@ -134,6 +134,7 @@
     "scraping": {
       "failed": "Error al procesar la URL",
       "noContent": "No se pudo extraer suficiente contenido del artículo",
+      "minimumContent": "El artículo no tiene suficiente texto para crear un hilo. Se requiere un mínimo de 300 caracteres.",
       "invalidUrl": "No se pudo acceder a la URL. Verifica que sea correcta y accesible.",
       "parseError": "Error al procesar el contenido HTML de la página.",
       "serverError": "Error del servidor: {message}",

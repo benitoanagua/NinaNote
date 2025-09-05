@@ -74,11 +74,23 @@ export const useScraper = () => {
     }
   }
 
+  const validateContentLength = (content: string): { isValid: boolean; error?: string } => {
+    const minLength = 300
+    if (!content || content.trim().length < minLength) {
+      return {
+        isValid: false,
+        error: i18n.global.t('errors.scraping.minimumContent', { minLength }),
+      }
+    }
+    return { isValid: true }
+  }
+
   return {
     scrapeContent,
     extractImages,
     scrapeTextWithImages,
     validateUrl,
+    validateContentLength,
     isLoading,
     error,
   }

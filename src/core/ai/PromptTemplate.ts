@@ -8,10 +8,10 @@ export interface PromptTemplate {
 export const PROMPT_TEMPLATES = {
   GENERATE_THREAD: {
     name: 'generate-thread',
-    version: '1.0',
-    variables: ['content'],
+    version: '1.1',
+    variables: ['content', 'tweetCount'],
     template: `
-Convierte este editorial en un hilo de Twitter de máximo 4 tweets.
+Convierte este editorial en un hilo de Twitter de exactamente {{tweetCount}} tweets.
 
 REGLAS ESTRICTAS:
 - Cada tweet debe tener máximo 280 caracteres

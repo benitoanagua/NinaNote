@@ -36,7 +36,21 @@ export class GoogleGenAIService extends BaseService {
 
   async generateThread(text: string, images: string[] = []): Promise<ThreadTweet[]> {
     this.logStart('Generating thread with Gemini')
-    const prompt = PromptEngine.compile(PROMPT_TEMPLATES.GENERATE_THREAD, { content: text })
+
+    // Determinar el número de tweets según la longitud del texto
+    const textLength = text.length
+    let tweetCount = 4 // Valor por defecto
+
+    if (textLength < 800) {
+      tweetCount = 3 // Texto corto: 3 tweets
+    } else if (textLength > 2000) {
+      tweetCount = 5 // Texto largo: 5 tweets
+    }
+
+    const prompt = PromptEngine.compile(PROMPT_TEMPLATES.GENERATE_THREAD, {
+      content: text,
+      tweetCount,
+    })
 
     const response = await this.ai.models.generateContent({
       model: 'gemini-2.0-flash',
@@ -49,7 +63,7 @@ export class GoogleGenAIService extends BaseService {
       .split('\n')
       .map((l) => l.trim())
       .filter((l) => l.length > 0)
-      .slice(0, 4)
+      .slice(0, tweetCount) // Usar el número calculado
       .map((content, i) => ({
         id: `tweet-${Date.now()}-${i}`,
         content,
