@@ -1,36 +1,5 @@
 <template>
   <div class="bg-surfaceContainerHigh rounded-xl p-6 shadow-md3">
-    <!-- Estado de disponibilidad de IA -->
-    <div
-      v-if="!aiAvailable"
-      class="mb-4 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-4"
-    >
-      <div class="flex items-start">
-        <svg
-          class="w-5 h-5 text-primary mr-2 mt-0.5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <div>
-          <p class="text-primary text-sm font-medium mb-2">Configuración de IA requerida</p>
-          <p class="text-primary text-sm">
-            Para usar la generación real de IA, configura la API key de Google Gemini.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Terminal Loader durante la generación -->
-    <TerminalLoader v-if="isGenerating" :is-loading="isGenerating" class="mb-6" />
-
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center">
         <div
@@ -57,7 +26,7 @@
       <button
         @click="regenerateAll"
         :disabled="isRegenerating"
-        class="px-4 py-2 bg-secondaryContainer text-onSecondaryContainer rounded-lg hover:bg-secondaryContainer hover:text-onSecondaryContainer disabled:opacity-60"
+        class="px-4 py-2 bg-secondaryContainer text-onSecondaryContainer rounded-lg hover:bg-secondaryContainer hover:text-onSecondaryContainer disabled:opacity-60 transition-colors"
       >
         <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -71,7 +40,7 @@
       </button>
     </div>
 
-    <div v-if="!isGenerating && tweets.length > 0" class="space-y-4">
+    <div v-if="tweets.length > 0" class="space-y-4">
       <div
         v-for="(tweet, index) in tweets"
         :key="tweet.id"
@@ -101,7 +70,7 @@
             <button
               @click="regenerateTweet(index)"
               :disabled="regeneratingIndex === index"
-              class="p-2 text-onSurfaceVariant hover:text-primary rounded-full"
+              class="p-2 text-onSurfaceVariant hover:text-primary rounded-full transition-colors"
               :title="$t('summary.regenerateTweet')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,7 +85,7 @@
 
             <button
               @click="editTweet(index)"
-              class="p-2 text-onSurfaceVariant hover:text-primary rounded-full"
+              class="p-2 text-onSurfaceVariant hover:text-primary rounded-full transition-colors"
               :title="$t('summary.editTweet')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,12 +117,15 @@
               class="rounded-lg w-full h-48 object-cover shadow-sm"
               @error="handleImageError(tweet, index)"
             />
+            <p class="text-xs text-onSurfaceVariant mt-1 text-center">
+              Imagen {{ index + 1 }} de {{ tweets.length }}
+            </p>
           </div>
 
           <div v-else class="space-y-2">
             <textarea
               v-model="editingContent"
-              class="input-outlined w-full p-3 bg-surfaceContainerHighest border border-outline rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none text-onSurface"
+              class="input-outlined w-full p-3 bg-surfaceContainerHighest border border-outline rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none text-onSurface transition-colors"
               :class="{
                 'border-error focus:border-error focus:ring-error/20': editingContent.length > 280,
               }"
@@ -173,14 +145,14 @@
               <div class="flex gap-2">
                 <button
                   @click="cancelEdit"
-                  class="px-3 py-1 text-sm text-onSurfaceVariant hover:text-onSurface rounded-lg"
+                  class="px-3 py-1 text-sm text-onSurfaceVariant hover:text-onSurface rounded-lg transition-colors"
                 >
                   {{ $t('summary.cancelEdit') }}
                 </button>
                 <button
                   @click="saveEdit(index)"
                   :disabled="editingContent.length > 280"
-                  class="px-3 py-1 text-sm bg-primary text-onPrimary rounded-lg hover:bg-primary disabled:opacity-60"
+                  class="px-3 py-1 text-sm bg-primary text-onPrimary rounded-lg hover:bg-primary disabled:opacity-60 transition-colors"
                 >
                   {{ $t('summary.saveEdit') }}
                 </button>
@@ -230,8 +202,7 @@
       </div>
     </div>
 
-    <!-- Estado cuando no hay tweets (solo terminal) -->
-    <div v-else-if="!isGenerating" class="text-center py-8 text-onSurfaceVariant">
+    <div v-else class="text-center py-8 text-onSurfaceVariant">
       <svg
         class="w-12 h-12 mx-auto mb-4 opacity-50"
         fill="none"
@@ -250,7 +221,7 @@
 
     <!-- Estado de carga global -->
     <div
-      v-if="isRegenerating && !isGenerating"
+      v-if="isRegenerating"
       class="mt-6 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-4"
     >
       <div class="flex items-center justify-center">
@@ -262,12 +233,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, nextTick } from 'vue'
+import { ref, onMounted } from 'vue'
 import type { ThreadTweet } from '@/core/types'
 import { useGoogleGenAI } from '@/composables/useGoogleGenAI'
 import { ImageUtils } from '@/core/utils/imageUtils'
 import { ImageGenerator } from '@/core/utils/imageGenerator'
-import TerminalLoader from './TerminalLoader.vue'
 import { logger } from '@/utils/logger'
 
 interface Props {
@@ -428,20 +398,6 @@ const handleImageError = async (tweet: ThreadTweet, index: number) => {
   }
 }
 
-// Estadísticas del hilo para logging
-const threadStats = computed(() => {
-  const longTweets = props.tweets.filter((t) => t.charCount > 280).length
-  const totalChars = props.tweets.reduce((sum, t) => sum + t.charCount, 0)
-  const avgChars = props.tweets.length > 0 ? Math.round(totalChars / props.tweets.length) : 0
-
-  return {
-    longTweets,
-    totalChars,
-    avgChars,
-    hasImages: props.tweets.some((t) => t.imageUrl),
-  }
-})
-
 onMounted(async () => {
   aiAvailable.value = await checkAvailability()
 
@@ -451,13 +407,14 @@ onMounted(async () => {
     logger.warn('IA no disponible - Verificar configuración de API', { context: 'AI' })
   }
 
-  // Esperar a que el terminal loader se monte
-  await nextTick()
-
   if (props.tweets.length > 0) {
     logger.success(`Hilo generado con ${props.tweets.length} tweets`, {
       context: 'ThreadPreview',
-      data: threadStats.value,
+      data: {
+        longTweets: props.tweets.filter((t) => t.charCount > 280).length,
+        totalChars: props.tweets.reduce((sum, t) => sum + t.charCount, 0),
+        hasImages: props.tweets.some((t) => t.imageUrl),
+      },
     })
   }
 })

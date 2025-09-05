@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-background py-8 px-4">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-6xl mx-auto">
       <div class="text-center mb-8">
         <h1 class="text-3xl font-semibold text-onSurface mb-2">{{ $t('summary.title') }}</h1>
         <p class="text-onSurfaceVariant">{{ $t('summary.subtitle') }}</p>
@@ -16,7 +16,7 @@
       <!-- Mostrar error si existe -->
       <div
         v-if="errorMessage"
-        class="mb-8 bg-errorContainer/30 border border-errorContainer rounded-lg p-6"
+        class="mb-6 bg-errorContainer/30 border border-errorContainer rounded-lg p-6"
       >
         <div class="flex items-start">
           <svg
@@ -37,7 +37,7 @@
             <p class="text-error mb-4">{{ errorMessage }}</p>
             <button
               @click="retry"
-              class="px-4 py-2 bg-error text-onError rounded-lg hover:bg-error/90"
+              class="px-4 py-2 bg-error text-onError rounded-lg hover:bg-error/90 transition-colors"
             >
               Reintentar
             </button>
@@ -74,7 +74,7 @@
       <div class="mt-8 text-center">
         <router-link
           to="/"
-          class="px-6 py-2 bg-secondaryContainer text-onSecondaryContainer rounded-lg hover:bg-secondaryContainer hover:text-onSecondaryContainer"
+          class="px-6 py-2 bg-secondaryContainer text-onSecondaryContainer rounded-lg hover:bg-secondaryContainer hover:text-onSecondaryContainer transition-colors"
         >
           <svg class="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -129,9 +129,17 @@ const loadArticle = async () => {
   errorMessage.value = ''
   isLoading.value = true
 
+  logger.info('Iniciando carga de artículo', {
+    context: 'SummaryView',
+    data: { hasUrl: !!route.query.url },
+  })
+
   if (!route.query.url) {
     errorMessage.value = 'No se proporcionó URL para procesar'
-    logger.warn('No URL provided in route query', { context: 'SummaryView' })
+    logger.warn('No URL provided in route query', {
+      context: 'SummaryView',
+      data: { queryParams: route.query },
+    })
     isLoading.value = false
     return
   }
@@ -140,11 +148,15 @@ const loadArticle = async () => {
     const url = decodeURIComponent(route.query.url as string)
     logger.info('Iniciando procesamiento de artículo', {
       context: 'SummaryView',
-      data: { url },
+      data: { url: url.substring(0, 50) + (url.length > 50 ? '...' : '') },
     })
 
     // 1. Scraping del contenido
-    logger.info('Iniciando scraping de contenido', { context: 'SummaryView' })
+    logger.info('Iniciando scraping de contenido', {
+      context: 'SummaryView',
+      data: { url: url.substring(0, 30) + '...' },
+    })
+
     const contentResult = await scrapeContent(url)
     articleContent.value = contentResult.content
     articleImages.value = contentResult.images || []
@@ -153,18 +165,23 @@ const loadArticle = async () => {
       context: 'SummaryView',
       data: {
         contentLength: contentResult.content.length,
-        title: contentResult.title,
+        title:
+          contentResult.title.substring(0, 30) + (contentResult.title.length > 30 ? '...' : ''),
         imageCount: contentResult.images?.length || 0,
         hasAuthor: !!contentResult.author,
+        hasExcerpt: !!contentResult.excerpt,
       },
     })
 
     // Validar longitud mínima de contenido
     if (contentResult.content.length < 300) {
       const errorMsg = `Contenido insuficiente (${contentResult.content.length} caracteres). Mínimo 300 requeridos.`
-      logger.warn(errorMsg, {
+      logger.warn('Contenido demasiado corto para generar hilo', {
         context: 'SummaryView',
-        data: { contentLength: contentResult.content.length },
+        data: {
+          contentLength: contentResult.content.length,
+          minRequired: 300,
+        },
       })
       throw new Error(errorMsg)
     }
@@ -172,7 +189,10 @@ const loadArticle = async () => {
     // 2. Generar hilo con Google IA
     logger.info('Iniciando generación de hilo con IA', {
       context: 'SummaryView',
-      data: { contentLength: contentResult.content.length },
+      data: {
+        contentLength: contentResult.content.length,
+        imageCount: articleImages.value.length,
+      },
     })
 
     const generatedTweets = await generateThread(contentResult.content, articleImages.value)
@@ -187,11 +207,12 @@ const loadArticle = async () => {
           generatedTweets.reduce((sum, t) => sum + t.charCount, 0) / generatedTweets.length,
         ),
         imagesUsed: generatedTweets.filter((t) => t.imageUrl).length,
+        longTweets: generatedTweets.filter((t) => t.charCount > 280).length,
       },
     })
 
     // Guardar estadísticas finales
-    logger.info('Procesamiento completado', {
+    logger.info('Procesamiento completado exitosamente', {
       context: 'SummaryView',
       data: processStats.value,
     })
@@ -204,8 +225,8 @@ const loadArticle = async () => {
       context: 'SummaryView',
       data: {
         error: appError.message,
-        originalError: error,
-        url: decodedUrl.value,
+        originalError: error instanceof Error ? error.message : 'Unknown error',
+        url: decodedUrl.value.substring(0, 30) + '...',
         ...processStats.value,
       },
     })
@@ -215,7 +236,10 @@ const loadArticle = async () => {
 }
 
 const retry = () => {
-  logger.info('Reintentando procesamiento de artículo', { context: 'SummaryView' })
+  logger.info('Reintentando procesamiento de artículo', {
+    context: 'SummaryView',
+    data: { previousError: errorMessage.value },
+  })
   loadArticle()
 }
 
@@ -227,6 +251,7 @@ const handleTweetsUpdated = (updatedTweets: ThreadTweet[]) => {
       tweetCount: updatedTweets.length,
       longTweets: updatedTweets.filter((t) => t.charCount > 280).length,
       totalCharacters: updatedTweets.reduce((sum, t) => sum + t.charCount, 0),
+      imagesUsed: updatedTweets.filter((t) => t.imageUrl).length,
     },
   })
 }
@@ -238,7 +263,10 @@ watch(
     if (newUrl && newUrl !== oldUrl) {
       logger.info('URL cambiada, recargando contenido', {
         context: 'SummaryView',
-        data: { oldUrl, newUrl },
+        data: {
+          oldUrl: oldUrl ? 'present' : 'none',
+          newUrl: 'present',
+        },
       })
       loadArticle()
     }
@@ -255,7 +283,10 @@ onMounted(() => {
   if (route.query.url) {
     loadArticle()
   } else {
-    logger.warn('No URL found in route parameters', { context: 'SummaryView' })
+    logger.warn('No URL found in route parameters', {
+      context: 'SummaryView',
+      data: { queryParams: route.query },
+    })
   }
 })
 
@@ -267,6 +298,7 @@ onUnmounted(() => {
       processed: tweets.value.length > 0,
       finalTweetCount: tweets.value.length,
       hadError: !!errorMessage.value,
+      contentLength: articleContent.value.length,
     },
   })
 })

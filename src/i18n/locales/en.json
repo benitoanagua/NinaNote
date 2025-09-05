@@ -130,6 +130,9 @@
     "unauthorized": "Unauthorized",
     "forbidden": "Access denied",
     "notFound": "Resource not found",
+    "cors_error": "CORS error: Cannot access this website due to browser security restrictions.",
+    "scraping_failed": "Failed to process the web page",
+    "network_error": "Network error: Could not connect to the website",
 
     "scraping": {
       "failed": "Error processing URL",

@@ -20,9 +20,12 @@ export const ErrorCodes = {
   // Validation errors
   VALIDATION_ERROR: 'VALIDATION_ERROR',
 
+  // CORS and network errors
+  CORS_ERROR: 'CORS_ERROR',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+
   // Generic errors
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
-  NETWORK_ERROR: 'NETWORK_ERROR',
   TIMEOUT: 'TIMEOUT',
   UNAUTHORIZED: 'UNAUTHORIZED',
   FORBIDDEN: 'FORBIDDEN',

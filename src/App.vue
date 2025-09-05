@@ -1,5 +1,5 @@
 <template>
-  <div id="app" class="min-h-screen bg-background">
+  <div id="app" class="min-h-screen bg-background flex flex-col">
     <!-- Header -->
     <header class="bg-surface shadow-sm border-b border-outlineVariant sticky top-0 z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -58,24 +58,25 @@
       <router-view />
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-surface border-t border-outlineVariant mt-12">
-      <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <p class="text-center text-onSurfaceVariant text-sm">
-          {{ $t('app.description') }}
-        </p>
-      </div>
-    </footer>
+    <!-- Terminal Global Fijo en lugar del footer -->
+    <TerminalLoader
+      :isLoading="isTerminalLoading"
+      class="fixed bottom-0 left-0 right-0 z-50 border-t border-outlineVariant"
+      :auto-collapse="true"
+      :collapse-delay="5000"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useSessionStore } from '@/stores/session'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import LanguageSelector from '@/components/LanguageSelector.vue'
+import TerminalLoader from '@/components/TerminalLoader.vue'
 
 const sessionStore = useSessionStore()
+const isTerminalLoading = ref(false)
 
 onMounted(() => {
   sessionStore.loadTwitterToken()

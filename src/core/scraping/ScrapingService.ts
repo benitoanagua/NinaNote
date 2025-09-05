@@ -24,10 +24,18 @@ export class ScrapingService extends BaseService {
     } catch (error) {
       this.logError('Failed to scrape content', error)
       logger.scraping.error(error instanceof Error ? error : new Error(String(error)))
-      throw ErrorFactory.scraping(
-        error instanceof Error ? error.message : 'Failed to scrape content',
-        error instanceof Error ? error : undefined,
-      )
+
+      // Manejar específicamente errores de CORS
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      if (errorMessage.includes('CORS') || errorMessage.includes('cors')) {
+        throw ErrorFactory.cors(errorMessage, error instanceof Error ? error : undefined)
+      }
+
+      if (errorMessage.includes('network') || errorMessage.includes('Network')) {
+        throw ErrorFactory.network(errorMessage, error instanceof Error ? error : undefined)
+      }
+
+      throw ErrorFactory.scraping(errorMessage, error instanceof Error ? error : undefined)
     }
   }
 
@@ -62,16 +70,55 @@ export class ScrapingService extends BaseService {
   }
 
   private async fetchHtml(url: string): Promise<string> {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-      },
-    })
-    if (!res.ok) {
-      throw ErrorFactory.scraping(`HTTP ${res.status}: ${res.statusText}`)
+    try {
+      // Intentar con CORS proxy primero
+      const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`
+
+      const res = await fetch(corsProxyUrl, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        },
+        signal: AbortSignal.timeout(10000), // Timeout de 10 segundos
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+      }
+
+      return await res.text()
+    } catch (corsError) {
+      logger.warn('CORS proxy failed, trying direct fetch', {
+        context: 'ScrapingService',
+        data: { url, error: corsError },
+      })
+
+      // Fallback a fetch directo
+      try {
+        const res = await fetch(url, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          },
+          signal: AbortSignal.timeout(8000), // Timeout más corto para direct fetch
+        })
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        }
+
+        return await res.text()
+      } catch (directError) {
+        logger.error('Both CORS proxy and direct fetch failed', {
+          context: 'ScrapingService',
+          data: { url, corsError, directError },
+        })
+
+        throw new Error(
+          `No se pudo acceder a la URL debido a restricciones CORS. Error: ${directError instanceof Error ? directError.message : 'Unknown error'}`,
+        )
+      }
     }
-    return res.text()
   }
 
   private extractContent(html: string, url: string): ScrapedContent {
