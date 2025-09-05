@@ -290,7 +290,7 @@
 import { ref, onMounted } from 'vue'
 import type { ThreadTweet } from '@/core/types'
 import type { AIModel } from '@/core/types'
-import { useLLM } from '@/composables/useLLM'
+import { useGoogleGenAI } from '@/composables/useGoogleGenAI'
 import { ImageUtils } from '@/core/utils/imageUtils'
 
 interface Props {
@@ -307,10 +307,10 @@ const emit = defineEmits<{
 const {
   regenerateTweet: regenerateSingleTweet,
   generateThread,
-  checkPuterAvailability,
+  checkAvailability,
   getAvailableModels,
   isGenerating,
-} = useLLM()
+} = useGoogleGenAI()
 
 const isRegenerating = ref(false)
 const regeneratingIndex = ref<number | null>(null)
@@ -380,7 +380,7 @@ const handleImageError = (tweet: ThreadTweet, index: number) => {
 }
 
 onMounted(async () => {
-  aiAvailable.value = await checkPuterAvailability()
+  aiAvailable.value = await checkAvailability()
 
   if (aiAvailable.value) {
     try {

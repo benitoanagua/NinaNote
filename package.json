@@ -20,6 +20,7 @@
     "prebuild": "tsx src/plugins/material-theme/cli.ts"
   },
   "dependencies": {
+    "@google/genai": "^1.17.0",
     "@material/material-color-utilities": "^0.3.0",
     "@mozilla/readability": "^0.6.0",
     "@tailwindcss/vite": "^4.1.12",

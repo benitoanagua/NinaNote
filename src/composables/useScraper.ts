@@ -74,16 +74,11 @@ export const useScraper = () => {
     }
   }
 
-  const checkPuterAvailability = (): boolean => {
-    return scrapingService.checkPuterAvailability()
-  }
-
   return {
     scrapeContent,
     extractImages,
     scrapeTextWithImages,
     validateUrl,
-    checkPuterAvailability,
     isLoading,
     error,
   }

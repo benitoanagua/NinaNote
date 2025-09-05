@@ -44,15 +44,15 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useGoogleGenAI } from '@/composables/useGoogleGenAI'
 import { useScraper } from '@/composables/useScraper'
-import { useLLM } from '@/composables/useLLM'
 import ThreadPreview from '@/components/ThreadPreview.vue'
 import TwitterPublish from '@/components/TwitterPublish.vue'
 import type { ThreadTweet } from '@/core/types'
 
 const route = useRoute()
 const { scrapeTextWithImages } = useScraper()
-const { generateThread } = useLLM()
+const { generateThread } = useGoogleGenAI()
 
 const tweets = ref<ThreadTweet[]>([])
 const articleContent = ref('')
@@ -63,28 +63,27 @@ const decodedUrl = computed(() => {
 })
 
 onMounted(async () => {
-  if (!route.query.url) {
-    return
-  }
+  if (!route.query.url) return
 
   try {
     const url = decodeURIComponent(route.query.url as string)
     console.log('📄 Processing article from URL:', url)
 
+    // 1. Scraping clásico (fetch + Readability)
     const { content, images } = await scrapeTextWithImages(url)
     articleContent.value = content
     articleImages.value = images
     console.log('📝 Article content length:', content.length)
     console.log('🖼️ Extracted images:', images.length)
 
+    // 2. Generar hilo con Google IA
     const generatedTweets = await generateThread(content, images)
     tweets.value = generatedTweets
     console.log('🐦 Tweets generated with images:', generatedTweets.length)
   } catch (error) {
     console.error('❌ Error processing article:', error)
 
-    // Fallback: usar contenido de ejemplo
-    console.log('🔄 Using fallback content due to error')
+    // Fallback: contenido de ejemplo
     articleContent.value = `
 Editorial: La Transformación Digital en América Latina
 
