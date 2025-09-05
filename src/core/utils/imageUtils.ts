@@ -1,26 +1,27 @@
+import { ImageGenerator } from './imageGenerator'
+
 export class ImageUtils {
-  static readonly PLACEHOLDER_IMAGES = [
-    'https://via.placeholder.com/600x400/29AB87/FFFFFF?text=Nina+Note',
-    'https://via.placeholder.com/600x400/2563EB/FFFFFF?text=Twitter+Thread',
-    'https://via.placeholder.com/600x400/7C3AED/FFFFFF?text=Content+Summary',
-    'https://via.placeholder.com/600x400/DC2626/FFFFFF?text=Engagement',
-  ]
+  // Elimina las URLs de placeholder externas
+  static readonly PLACEHOLDER_IMAGES: string[] = []
 
   // Verificar si una URL de imagen es válida
   static isValidImageUrl(url: string | null): boolean {
     if (!url) return false
 
+    // Las imágenes generadas localmente son siempre válidas
+    if (url.startsWith('data:image/')) return true
+
     try {
       const parsedUrl = new URL(url)
       const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-      const validDomains = ['placeholder.com', 'images.unsplash.com', 'picsum.photos']
+      const validDomains = ['images.unsplash.com', 'picsum.photos']
 
       // Verificar extensión
       const hasValidExtension = validExtensions.some((ext) =>
         parsedUrl.pathname.toLowerCase().endsWith(ext),
       )
 
-      // Verificar dominio (para placeholders)
+      // Verificar dominio
       const hasValidDomain = validDomains.some((domain) => parsedUrl.hostname.includes(domain))
 
       return hasValidExtension || hasValidDomain
@@ -29,9 +30,14 @@ export class ImageUtils {
     }
   }
 
-  // Obtener imagen placeholder por índice
-  static getPlaceholderImage(index: number): string {
-    return this.PLACEHOLDER_IMAGES[index % this.PLACEHOLDER_IMAGES.length]
+  // Obtener imagen generada localmente por índice
+  static getGeneratedImage(index: number, total: number): string {
+    return ImageGenerator.generateNumberedImage(index, total)
+  }
+
+  // Obtener imagen de gradiente
+  static getGradientImage(index: number, total: number): string {
+    return ImageGenerator.generateGradientImage(index, total)
   }
 
   // Extraer todas las imágenes de un documento HTML
@@ -41,13 +47,19 @@ export class ImageUtils {
     // Extraer Open Graph images
     const ogImage = doc.querySelector('meta[property="og:image"]')
     if (ogImage && ogImage.getAttribute('content')) {
-      images.push(ogImage.getAttribute('content')!)
+      const imageUrl = ogImage.getAttribute('content')!
+      if (this.isValidImageUrl(imageUrl)) {
+        images.push(imageUrl)
+      }
     }
 
     // Extraer Twitter images
     const twitterImage = doc.querySelector('meta[name="twitter:image"]')
     if (twitterImage && twitterImage.getAttribute('content')) {
-      images.push(twitterImage.getAttribute('content')!)
+      const imageUrl = twitterImage.getAttribute('content')!
+      if (this.isValidImageUrl(imageUrl)) {
+        images.push(imageUrl)
+      }
     }
 
     // Extraer imágenes de contenido (solo las más relevantes)
@@ -60,5 +72,36 @@ export class ImageUtils {
 
     // Filtrar duplicados y URLs inválidas
     return Array.from(new Set(images)).filter((url) => this.isValidImageUrl(url))
+  }
+
+  // Distribuir imágenes para los tweets
+  static distributeImagesForTweets(availableImages: string[], tweetCount: number): string[] {
+    const distributedImages: string[] = []
+
+    if (availableImages.length === 0) {
+      // Si no hay imágenes, generar una para cada tweet
+      for (let i = 0; i < tweetCount; i++) {
+        distributedImages.push(this.getGeneratedImage(i, tweetCount))
+      }
+    } else if (availableImages.length === 1) {
+      // Si hay solo una imagen, usarla para el primer tweet y generar las demás
+      distributedImages.push(availableImages[0])
+      for (let i = 1; i < tweetCount; i++) {
+        // Crear variaciones basadas en la primera imagen
+        distributedImages.push(this.getGeneratedImage(i, tweetCount))
+      }
+    } else {
+      // Si hay múltiples imágenes, distribuirlas equitativamente
+      for (let i = 0; i < tweetCount; i++) {
+        if (i < availableImages.length) {
+          distributedImages.push(availableImages[i])
+        } else {
+          // Si hay más tweets que imágenes, reciclar las imágenes
+          distributedImages.push(availableImages[i % availableImages.length])
+        }
+      }
+    }
+
+    return distributedImages
   }
 }

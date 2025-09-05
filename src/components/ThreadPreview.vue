@@ -383,8 +383,8 @@ const saveEdit = (index: number) => {
 
 // Manejar errores de carga de imágenes
 const handleImageError = (tweet: ThreadTweet, index: number) => {
-  // Reemplazar con placeholder si la imagen falla
-  tweet.imageUrl = ImageUtils.getPlaceholderImage(index)
+  // Reemplazar con imagen generada localmente si la imagen falla
+  tweet.imageUrl = ImageUtils.getGeneratedImage(index, props.tweets.length)
 }
 
 onMounted(async () => {

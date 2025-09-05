@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai'
 import type { AIModel, ThreadTweet } from '../types'
 import { BaseService } from '../base/BaseService'
 import { PROMPT_TEMPLATES, PromptEngine } from './PromptTemplate'
+import { ImageUtils } from '../utils/imageUtils'
 
 export class GoogleGenAIService extends BaseService {
   private ai: GoogleGenAI
@@ -59,17 +60,22 @@ export class GoogleGenAIService extends BaseService {
     })
 
     const raw = response.text ?? ''
-    const tweets = raw
+    const tweetContents = raw
       .split('\n')
       .map((l) => l.trim())
       .filter((l) => l.length > 0)
-      .slice(0, tweetCount) // Usar el número calculado
-      .map((content, i) => ({
-        id: `tweet-${Date.now()}-${i}`,
-        content,
-        charCount: content.length,
-        imageUrl: images[i] || undefined,
-      }))
+      .slice(0, tweetCount)
+
+    // Distribuir las imágenes entre los tweets
+    const distributedImages = ImageUtils.distributeImagesForTweets(images, tweetCount)
+
+    // Crear los tweets con sus imágenes
+    const tweets = tweetContents.map((content, i) => ({
+      id: `tweet-${Date.now()}-${i}`,
+      content,
+      charCount: content.length,
+      imageUrl: distributedImages[i],
+    }))
 
     this.logSuccess(`Generated ${tweets.length} tweets`)
     return tweets

@@ -126,11 +126,8 @@ export class ScrapingService extends BaseService {
   }
 
   private getMockImages(): string[] {
-    return [
-      'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600',
-      'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600',
-      'https://images.unsplash.com/photo-1533750349088-cd871a92f312?w=600',
-    ]
+    // Ya no necesitamos imágenes mock externas
+    return []
   }
 }
 
