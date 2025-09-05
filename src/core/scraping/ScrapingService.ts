@@ -1,7 +1,7 @@
 import { Readability } from '@mozilla/readability'
 import type { ScrapedContent } from '../types'
 import { BaseService } from '../base/BaseService'
-import { MOCK_CONTENT } from '../ai/PromptTemplate'
+import { ErrorFactory } from '@/utils/errorHandler'
 
 export class ScrapingService extends BaseService {
   constructor() {
@@ -20,7 +20,10 @@ export class ScrapingService extends BaseService {
       return content
     } catch (error) {
       this.logError('Failed to scrape content', error)
-      return this.getMockContent(url)
+      throw ErrorFactory.scraping(
+        error instanceof Error ? error.message : 'Failed to scrape content',
+        error instanceof Error ? error : undefined,
+      )
     }
   }
 
@@ -32,17 +35,24 @@ export class ScrapingService extends BaseService {
       return this.extractRelevantImages(doc)
     } catch (error) {
       this.logError('Failed to extract images', error)
-      return []
+      throw ErrorFactory.scraping(
+        'Failed to extract images from URL',
+        error instanceof Error ? error : undefined,
+      )
     }
   }
 
   validateUrl(url: string): void {
     try {
       const u = new URL(url)
-      if (!['http:', 'https:'].includes(u.protocol)) throw new Error('Invalid protocol')
-      if (!u.hostname || u.hostname.length < 3) throw new Error('Invalid domain')
+      if (!['http:', 'https:'].includes(u.protocol)) {
+        throw ErrorFactory.validation('Invalid protocol. Only HTTP and HTTPS URLs are allowed')
+      }
+      if (!u.hostname || u.hostname.length < 3) {
+        throw ErrorFactory.validation('Invalid domain')
+      }
     } catch {
-      throw new Error('Invalid URL')
+      throw ErrorFactory.validation('Invalid URL format')
     }
   }
 
@@ -53,7 +63,9 @@ export class ScrapingService extends BaseService {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
     })
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+    if (!res.ok) {
+      throw ErrorFactory.scraping(`HTTP ${res.status}: ${res.statusText}`)
+    }
     return res.text()
   }
 
@@ -64,10 +76,14 @@ export class ScrapingService extends BaseService {
 
     const reader = new Readability(doc)
     const article = reader.parse()
-    if (!article) throw new Error('Could not parse article content')
+    if (!article) {
+      throw ErrorFactory.scraping('Could not parse article content')
+    }
 
     const textContent = article.textContent || ''
-    if (textContent.length < 200) throw new Error('Extracted content too short')
+    if (textContent.length < 200) {
+      throw ErrorFactory.scraping('Extracted content too short')
+    }
 
     const images = this.extractRelevantImages(doc)
 
@@ -153,18 +169,6 @@ export class ScrapingService extends BaseService {
       .replace(/\s+/g, ' ')
       .replace(/\n\s*\n\s*\n/g, '\n\n')
       .trim()
-  }
-
-  private getMockContent(url: string): ScrapedContent {
-    return {
-      url,
-      title: 'La Transformación Digital en América Latina',
-      content: MOCK_CONTENT,
-      excerpt: 'Análisis sobre transformación digital',
-      author: 'Autor de Ejemplo',
-      publishedDate: new Date().toISOString(),
-      images: [],
-    }
   }
 }
 

@@ -11,22 +11,8 @@ import './assets/main.css'
 const savedTheme = localStorage.getItem('nina-note-theme') || 'light'
 document.documentElement.setAttribute('data-theme', savedTheme)
 
-// Detectar Puter.js
-const detectPuterEnvironment = (): boolean => {
-  return typeof window !== 'undefined' && !!(window as any).puter
-}
-
 const initializeApp = async () => {
   logger.info('🔥 Nina Note - Starting up...')
-
-  const isPuterEnvironment = detectPuterEnvironment()
-  logger.info('Environment detected', {
-    data: { environment: isPuterEnvironment ? 'Puter.js' : 'Development' },
-  })
-
-  if (isPuterEnvironment) {
-    await initializePuter()
-  }
 
   const app = createApp(App)
 
@@ -37,45 +23,6 @@ const initializeApp = async () => {
   app.mount('#app')
 
   logger.success('Application mounted successfully')
-}
-
-const initializePuter = async (): Promise<void> => {
-  try {
-    const puter = (window as any).puter
-
-    // Verificar APIs críticas
-    const criticalApis = ['ai', 'net', 'auth']
-    const availableApis = criticalApis.filter((api) => !!puter[api])
-
-    if (availableApis.length !== criticalApis.length) {
-      logger.warn('Not all Puter.js APIs are available', {
-        data: {
-          available: availableApis,
-          missing: criticalApis.filter((api) => !availableApis.includes(api)),
-        },
-      })
-    }
-
-    // Verificar autenticación
-    try {
-      const userInfo = await puter.auth.getUser()
-      logger.success('User authenticated', { data: { username: userInfo.username } })
-    } catch (authError) {
-      logger.warn('User not authenticated, some features may be limited')
-
-      // Intentar autenticación automática
-      try {
-        await puter.auth.signIn()
-        logger.success('User authentication completed')
-      } catch (signInError) {
-        logger.warn('User authentication cancelled or failed')
-      }
-    }
-
-    logger.success('Puter.js initialized successfully')
-  } catch (error) {
-    logger.error('Failed to initialize Puter.js', { data: error })
-  }
 }
 
 // Manejo global de errores

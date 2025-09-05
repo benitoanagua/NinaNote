@@ -1,7 +1,6 @@
 import { ref } from 'vue'
 import { scrapingService } from '@/core/scraping/ScrapingService'
-import { logger } from '@/utils/logger'
-import { ScrapingError, handleError, ErrorCodes } from '@/utils/errorHandler'
+import { handleError, translateError } from '@/utils/errorHandler'
 import i18n from '@/i18n'
 import type { ScrapedContent } from '@/core/types'
 
@@ -18,7 +17,7 @@ export const useScraper = () => {
       return content
     } catch (err) {
       const appError = handleError(err, 'Scraper')
-      error.value = appError.message
+      error.value = translateError(appError)
       throw appError
     } finally {
       isLoading.value = false
@@ -30,9 +29,10 @@ export const useScraper = () => {
       scrapingService.validateUrl(url)
       return { isValid: true }
     } catch (err) {
+      const appError = handleError(err, 'Scraper')
       return {
         isValid: false,
-        error: err instanceof Error ? err.message : i18n.global.t('home.urlInput.error.invalid'),
+        error: translateError(appError),
       }
     }
   }

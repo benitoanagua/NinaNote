@@ -115,7 +115,7 @@
     "status": {
       "available": "IA disponible - Generación real activa",
       "development": "Modo de Desarrollo",
-      "developmentDescription": "Tweets generados con contenido de ejemplo. Para IA real, ejecuta en entorno Puter.js."
+      "developmentDescription": "Tweets generados con contenido de ejemplo."
     },
     "models": {
       "title": "Modelos disponibles",
@@ -137,8 +137,7 @@
       "minimumContent": "El artículo no tiene suficiente texto para crear un hilo. Se requiere un mínimo de 300 caracteres.",
       "invalidUrl": "No se pudo acceder a la URL. Verifica que sea correcta y accesible.",
       "parseError": "Error al procesar el contenido HTML de la página.",
-      "serverError": "Error del servidor: {message}",
-      "puterRequired": "Puter.js no está disponible. Esta funcionalidad requiere ejecutarse en el entorno Puter."
+      "serverError": "Error del servidor: {message}"
     },
 
     "ai": {

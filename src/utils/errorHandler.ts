@@ -91,7 +91,6 @@ export const ErrorCodes = {
   INVALID_URL: 'INVALID_URL',
   PARSE_ERROR: 'PARSE_ERROR',
   SERVER_ERROR: 'SERVER_ERROR',
-  PUTER_REQUIRED: 'PUTER_REQUIRED',
 
   // AI errors
   AI_NO_RESPONSE: 'AI_NO_RESPONSE',
@@ -115,3 +114,14 @@ export const ErrorCodes = {
   FORBIDDEN: 'FORBIDDEN',
   NOT_FOUND: 'NOT_FOUND',
 } as const
+
+// Helper para crear errores específicos
+export const ErrorFactory = {
+  scraping: (message: string, originalError?: Error) => new ScrapingError(message, originalError),
+
+  ai: (message: string, originalError?: Error) => new AIError(message, originalError),
+
+  twitter: (message: string, originalError?: Error) => new TwitterError(message, originalError),
+
+  validation: (message: string) => new ValidationError(message),
+}

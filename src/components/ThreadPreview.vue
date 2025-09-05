@@ -1,6 +1,6 @@
 <template>
   <div class="bg-surfaceContainerHigh rounded-xl p-6 shadow-md3">
-    <!-- Estado de disponibilidad de IA -->
+    <!-- Cambiar el mensaje de desarrollo -->
     <div
       v-if="!aiAvailable"
       class="mb-4 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-4"
@@ -20,9 +20,9 @@
           />
         </svg>
         <div>
-          <p class="text-primary text-sm font-medium mb-2">{{ $t('ai.status.development') }}</p>
+          <p class="text-primary text-sm font-medium mb-2">Configuración de IA requerida</p>
           <p class="text-primary text-sm">
-            {{ $t('ai.status.developmentDescription') }}
+            Para usar la generación real de IA, configura la API key de Google Gemini.
           </p>
         </div>
       </div>

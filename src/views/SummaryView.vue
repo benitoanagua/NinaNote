@@ -13,17 +13,50 @@
         </a>
       </div>
 
+      <!-- Mostrar error si existe -->
+      <div
+        v-if="errorMessage"
+        class="mb-8 bg-errorContainer/30 border border-errorContainer rounded-lg p-6"
+      >
+        <div class="flex items-start">
+          <svg
+            class="w-6 h-6 text-error mr-3 mt-0.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.502 0L4.732 15.5c-.77.833.192 2.5 1.732 2.5z"
+            />
+          </svg>
+          <div class="flex-1">
+            <h3 class="text-error font-semibold mb-2">Error al procesar el artículo</h3>
+            <p class="text-error mb-4">{{ errorMessage }}</p>
+            <button
+              @click="retry"
+              class="px-4 py-2 bg-error text-onError rounded-lg hover:bg-error/90"
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
+      </div>
+
       <ThreadPreview
+        v-else
         :tweets="tweets"
         :original-content="articleContent"
         @tweets-updated="handleTweetsUpdated"
       />
 
-      <TwitterPublish :tweets="tweets" class="mt-8" />
+      <TwitterPublish v-if="!errorMessage" :tweets="tweets" class="mt-8" />
 
       <div class="mt-8 text-center">
-        <button
-          @click="$router.push('/')"
+        <router-link
+          to="/"
           class="px-6 py-2 bg-secondaryContainer text-onSecondaryContainer rounded-lg hover:bg-secondaryContainer hover:text-onSecondaryContainer"
         >
           <svg class="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,7 +68,7 @@
             />
           </svg>
           {{ $t('summary.backButton') }}
-        </button>
+        </router-link>
       </div>
     </div>
   </div>
@@ -49,6 +82,7 @@ import { useScraper } from '@/composables/useScraper'
 import ThreadPreview from '@/components/ThreadPreview.vue'
 import TwitterPublish from '@/components/TwitterPublish.vue'
 import type { ThreadTweet } from '@/core/types'
+import { handleError, translateError } from '@/utils/errorHandler'
 
 const route = useRoute()
 const { scrapeContent } = useScraper()
@@ -57,13 +91,19 @@ const { generateThread } = useGoogleGenAI()
 const tweets = ref<ThreadTweet[]>([])
 const articleContent = ref('')
 const articleImages = ref<string[]>([])
+const errorMessage = ref<string>('')
 
 const decodedUrl = computed(() => {
   return route.query.url ? decodeURIComponent(route.query.url as string) : ''
 })
 
-onMounted(async () => {
-  if (!route.query.url) return
+const loadArticle = async () => {
+  errorMessage.value = ''
+
+  if (!route.query.url) {
+    errorMessage.value = 'No URL provided'
+    return
+  }
 
   try {
     const url = decodeURIComponent(route.query.url as string)
@@ -83,42 +123,21 @@ onMounted(async () => {
     console.log('🐦 Tweets generated with images:', generatedTweets.length)
   } catch (error) {
     console.error('❌ Error processing article:', error)
-
-    // Fallback: contenido de ejemplo
-    articleContent.value = `
-Editorial: La Transformación Digital en América Latina
-
-La transformación digital ha llegado para quedarse en América Latina. 
-Las empresas que no se adapten a las nuevas tecnologías se quedarán atrás.
-
-Los datos revelan que el 85% de las compañías latinoamericanas han acelerado 
-sus procesos de digitalización desde 2020. Esta tendencia no es casualidad, 
-sino una necesidad imperante para sobrevivir en la nueva economía digital.
-    `.trim()
-
-    try {
-      const fallbackTweets = await generateThread(articleContent.value, [])
-      tweets.value = fallbackTweets
-    } catch (fallbackError) {
-      console.error('❌ Even fallback failed:', fallbackError)
-      // Último recurso: tweets mock
-      tweets.value = [
-        {
-          id: 'fallback-1',
-          content: '🔥 La transformación digital en América Latina es imparable...',
-          charCount: 50,
-        },
-        {
-          id: 'fallback-2',
-          content: '💡 Pero hay desafíos importantes que superar...',
-          charCount: 45,
-        },
-      ]
-    }
+    const appError = handleError(error, 'SummaryView')
+    errorMessage.value = translateError(appError)
+    throw appError // Propagar el error
   }
+}
+
+onMounted(() => {
+  loadArticle()
 })
 
 const handleTweetsUpdated = (updatedTweets: ThreadTweet[]) => {
   tweets.value = updatedTweets
+}
+
+const retry = () => {
+  loadArticle()
 }
 </script>

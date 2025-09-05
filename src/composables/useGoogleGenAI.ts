@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { googleGenAIService } from '@/core/ai/GoogleGenAIService'
 import type { ThreadTweet } from '@/core/types'
+import { handleError, translateError, ErrorFactory } from '@/utils/errorHandler'
 
 export const useGoogleGenAI = () => {
   const isGenerating = ref(false)
@@ -12,8 +13,9 @@ export const useGoogleGenAI = () => {
     try {
       return await googleGenAIService.generateThread(text, images)
     } catch (e: any) {
-      error.value = e.message || 'Error generando hilo'
-      throw error.value
+      const appError = handleError(e, 'GoogleGenAI')
+      error.value = translateError(appError)
+      throw appError
     } finally {
       isGenerating.value = false
     }
@@ -23,7 +25,7 @@ export const useGoogleGenAI = () => {
     try {
       return await googleGenAIService.regenerateTweet(originalText, tweetIndex)
     } catch (e: any) {
-      throw new Error('Error regenerando tweet')
+      throw ErrorFactory.ai('Error regenerando tweet', e)
     }
   }
 
