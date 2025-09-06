@@ -2,11 +2,13 @@ import { GoogleGenAI } from '@google/genai'
 import type { AIModel, ThreadTweet } from '../types'
 import { BaseService } from '../base/BaseService'
 import { PROMPT_TEMPLATES, PromptEngine } from './PromptTemplate'
-import { ImageGenerator } from '../utils/imageGenerator'
 import { logger, ErrorFactory } from '@/utils/logger'
+import { useImageManager } from '@/composables/useImageManager'
+import { ImageGenerator } from '../utils/imageGenerator'
 
 export class GoogleGenAIService extends BaseService {
   private ai: GoogleGenAI
+  private imageManager = useImageManager()
 
   constructor(apiKey: string) {
     super('GoogleGenAI Service')
@@ -96,11 +98,7 @@ export class GoogleGenAIService extends BaseService {
         data: { responseLength: raw.length },
       })
 
-      const tweetContents = raw
-        .split('\n')
-        .map((l) => l.trim())
-        .filter((l) => l.length > 0)
-        .slice(0, tweetCount)
+      const tweetContents = this.parseTweets(raw).slice(0, tweetCount)
 
       if (tweetContents.length === 0) {
         throw ErrorFactory.ai('No valid tweets generated from AI response')
@@ -139,58 +137,44 @@ export class GoogleGenAIService extends BaseService {
   }
 
   private async distributeImages(availableImages: string[], tweetCount: number): Promise<string[]> {
-    const distributedImages: string[] = []
-
     logger.info(`Distributing ${availableImages.length} images to ${tweetCount} tweets`, {
       context: 'AI',
     })
 
-    for (let i = 0; i < tweetCount; i++) {
-      if (i < availableImages.length) {
-        // Usar imagen real del artículo
-        distributedImages.push(availableImages[i])
-        logger.debug(`Using real image for tweet ${i + 1}`, {
-          context: 'AI',
-          data: { imageUrl: availableImages[i] },
-        })
-      } else if (availableImages.length > 0) {
-        // Generar imagen con overlay usando la primera imagen como base
+    try {
+      const validImages = this.imageManager.extractValidImages(availableImages)
+      const distributedImages = await this.imageManager.distributeImagesToTweets(
+        validImages,
+        tweetCount,
+      )
+
+      logger.debug('Imágenes distribuidas a tweets', {
+        context: 'AI',
+        data: {
+          imageCount: distributedImages.filter((img) => img).length,
+          tweetCount,
+        },
+      })
+
+      return distributedImages
+    } catch (error) {
+      logger.error('Error distributing images to tweets', {
+        context: 'AI',
+        data: error,
+      })
+
+      // Fallback: generar imágenes sólidas para todos los tweets
+      const fallbackImages: string[] = []
+      for (let i = 0; i < tweetCount; i++) {
         try {
-          const image = await ImageGenerator.generateNumberedImage(
-            i,
-            tweetCount,
-            availableImages[0],
-          )
-          distributedImages.push(image)
-          logger.debug(`Generated overlay image for tweet ${i + 1}`, {
-            context: 'AI',
-          })
-        } catch (error) {
-          logger.warn(`Failed to generate overlay image for tweet ${i + 1}`, {
-            context: 'AI',
-            data: error,
-          })
-          distributedImages.push('')
-        }
-      } else {
-        // Generar imagen con color sólido
-        try {
-          const image = await ImageGenerator.generateNumberedImage(i, tweetCount)
-          distributedImages.push(image)
-          logger.debug(`Generated solid color image for tweet ${i + 1}`, {
-            context: 'AI',
-          })
-        } catch (error) {
-          logger.warn(`Failed to generate solid color image for tweet ${i + 1}`, {
-            context: 'AI',
-            data: error,
-          })
-          distributedImages.push('')
+          const image = await ImageGenerator.generateNumberedImage(i)
+          fallbackImages.push(image)
+        } catch {
+          fallbackImages.push('')
         }
       }
+      return fallbackImages
     }
-
-    return distributedImages
   }
 
   async regenerateTweet(originalText: string, tweetIndex: number): Promise<string> {
@@ -234,12 +218,6 @@ export class GoogleGenAIService extends BaseService {
         error instanceof Error ? error : undefined,
       )
     }
-  }
-
-  private calculateTweetCount(textLength: number): number {
-    if (textLength < 800) return 3
-    if (textLength > 2000) return 5
-    return 4
   }
 
   private parseTweets(rawContent: string): string[] {

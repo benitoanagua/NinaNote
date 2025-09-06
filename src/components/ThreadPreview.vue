@@ -68,7 +68,7 @@
 
           <div class="flex items-center gap-2">
             <button
-              @click="regenerateTweet(index)"
+              @click="regenerateSingle(index)"
               :disabled="regeneratingIndex === index"
               class="p-2 text-onSurfaceVariant hover:text-primary rounded-full transition-colors"
               :title="$t('summary.regenerateTweet')"
@@ -84,7 +84,7 @@
             </button>
 
             <button
-              @click="editTweet(index)"
+              @click="startEdit(index)"
               class="p-2 text-onSurfaceVariant hover:text-primary rounded-full transition-colors"
               :title="$t('summary.editTweet')"
             >
@@ -233,12 +233,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { watch } from 'vue'
+import { useThreadManager } from '@/composables/useThreadManager'
 import type { ThreadTweet } from '@/core/types'
-import { useGoogleGenAI } from '@/composables/useGoogleGenAI'
-import { ImageUtils } from '@/core/utils/imageUtils'
-import { ImageGenerator } from '@/core/utils/imageGenerator'
-import { logger } from '@/utils/logger'
 
 interface Props {
   tweets: ThreadTweet[]
@@ -251,171 +248,28 @@ const emit = defineEmits<{
   tweetsUpdated: [tweets: ThreadTweet[]]
 }>()
 
+// Usar el composable para manejar la lógica
 const {
-  regenerateTweet: regenerateSingleTweet,
-  generateThread,
-  checkAvailability,
-  isGenerating,
-} = useGoogleGenAI()
+  tweets,
+  isRegenerating,
+  regeneratingIndex,
+  editingIndex,
+  editingContent,
+  regenerateAll,
+  regenerateSingle,
+  startEdit,
+  cancelEdit,
+  saveEdit,
+  handleImageError,
+  getThreadSizeLabel,
+} = useThreadManager(props.originalContent, props.tweets)
 
-const isRegenerating = ref(false)
-const regeneratingIndex = ref<number | null>(null)
-const editingIndex = ref<number | null>(null)
-const editingContent = ref('')
-const aiAvailable = ref(false)
-
-// Método para obtener etiqueta de tamaño del hilo
-const getThreadSizeLabel = () => {
-  if (props.tweets.length <= 3) return 'Hilo corto'
-  if (props.tweets.length === 4) return 'Hilo medio'
-  return 'Hilo extenso'
-}
-
-const regenerateAll = async () => {
-  isRegenerating.value = true
-  logger.info('Iniciando regeneración completa del hilo', { context: 'ThreadPreview' })
-
-  try {
-    // Extraer las imágenes actuales de los tweets para mantenerlas
-    const currentImages = props.tweets.map((tweet) => tweet.imageUrl || '')
-    logger.debug('Imágenes actuales extraídas', {
-      context: 'ThreadPreview',
-      data: { imageCount: currentImages.filter((img) => img).length },
-    })
-
-    const newTweets = await generateThread(props.originalContent, currentImages)
-    logger.success('Hilo regenerado exitosamente', {
-      context: 'ThreadPreview',
-      data: { tweetCount: newTweets.length },
-    })
-
+// Emitir actualizaciones cuando los tweets cambien
+watch(
+  tweets,
+  (newTweets) => {
     emit('tweetsUpdated', newTweets)
-  } catch (error) {
-    logger.error('Error al regenerar el hilo', {
-      context: 'ThreadPreview',
-      data: error,
-    })
-    console.error('Error regenerating thread:', error)
-  } finally {
-    isRegenerating.value = false
-  }
-}
-
-const regenerateTweet = async (index: number) => {
-  regeneratingIndex.value = index
-  logger.info(`Regenerando tweet ${index + 1}`, { context: 'ThreadPreview' })
-
-  try {
-    const newContent = await regenerateSingleTweet(props.originalContent, index)
-    const updatedTweets = [...props.tweets]
-    updatedTweets[index] = {
-      ...updatedTweets[index],
-      content: newContent,
-      charCount: newContent.length,
-    }
-
-    logger.success(`Tweet ${index + 1} regenerado`, {
-      context: 'ThreadPreview',
-      data: { newLength: newContent.length },
-    })
-
-    emit('tweetsUpdated', updatedTweets)
-  } catch (error) {
-    logger.error(`Error regenerando tweet ${index + 1}`, {
-      context: 'ThreadPreview',
-      data: error,
-    })
-    console.error('Error regenerating tweet:', error)
-  } finally {
-    regeneratingIndex.value = null
-  }
-}
-
-const editTweet = (index: number) => {
-  editingIndex.value = index
-  editingContent.value = props.tweets[index].content
-  logger.info(`Editando tweet ${index + 1}`, { context: 'ThreadPreview' })
-}
-
-const cancelEdit = () => {
-  editingIndex.value = null
-  editingContent.value = ''
-  logger.info('Edición cancelada', { context: 'ThreadPreview' })
-}
-
-const saveEdit = (index: number) => {
-  const updatedTweets = [...props.tweets]
-  updatedTweets[index] = {
-    ...updatedTweets[index],
-    content: editingContent.value,
-    charCount: editingContent.value.length,
-  }
-
-  logger.info(`Tweet ${index + 1} guardado`, {
-    context: 'ThreadPreview',
-    data: { newLength: editingContent.value.length },
-  })
-
-  emit('tweetsUpdated', updatedTweets)
-  cancelEdit()
-}
-
-// Manejar errores de carga de imágenes
-const handleImageError = async (tweet: ThreadTweet, index: number) => {
-  logger.warn(`Error loading image for tweet ${index + 1}`, {
-    context: 'ThreadPreview',
-    data: { imageUrl: tweet.imageUrl },
-  })
-
-  try {
-    if (tweet.imageUrl && !tweet.imageUrl.startsWith('data:image/')) {
-      const generatedImage = await ImageGenerator.generateNumberedImage(
-        index,
-        props.tweets.length,
-        tweet.imageUrl,
-      )
-      tweet.imageUrl = generatedImage
-      logger.info(`Imagen regenerada para tweet ${index + 1}`, { context: 'ThreadPreview' })
-    }
-  } catch (error) {
-    logger.error('Error generating image', {
-      context: 'ThreadPreview',
-      data: error,
-    })
-    console.error('Error generating image:', error)
-    // Generar imagen de fallback
-    try {
-      tweet.imageUrl = await ImageGenerator.generateNumberedImage(index, props.tweets.length)
-      logger.info(`Imagen de fallback generada para tweet ${index + 1}`, {
-        context: 'ThreadPreview',
-      })
-    } catch (fallbackError) {
-      logger.error('Error generating fallback image', {
-        context: 'ThreadPreview',
-        data: fallbackError,
-      })
-    }
-  }
-}
-
-onMounted(async () => {
-  aiAvailable.value = await checkAvailability()
-
-  if (aiAvailable.value) {
-    logger.info('IA disponible - Conectado a Google Gemini', { context: 'AI' })
-  } else {
-    logger.warn('IA no disponible - Verificar configuración de API', { context: 'AI' })
-  }
-
-  if (props.tweets.length > 0) {
-    logger.success(`Hilo generado con ${props.tweets.length} tweets`, {
-      context: 'ThreadPreview',
-      data: {
-        longTweets: props.tweets.filter((t) => t.charCount > 280).length,
-        totalChars: props.tweets.reduce((sum, t) => sum + t.charCount, 0),
-        hasImages: props.tweets.some((t) => t.imageUrl),
-      },
-    })
-  }
-})
+  },
+  { deep: true },
+)
 </script>

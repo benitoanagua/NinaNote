@@ -74,13 +74,18 @@ import { useSessionStore } from '@/stores/session'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import TerminalLoader from '@/components/TerminalLoader.vue'
+import { logger } from '@/utils/logger'
 
 const sessionStore = useSessionStore()
 const isTerminalLoading = ref(false)
 
 onMounted(() => {
+  const sessionStore = useSessionStore()
   sessionStore.loadTwitterToken()
   sessionStore.loadSavedThreads()
+  sessionStore.logStoreState()
+
+  logger.info('Application initialized', { context: 'App' })
 })
 </script>
 

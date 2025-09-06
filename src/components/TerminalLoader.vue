@@ -18,7 +18,9 @@
             </p>
             <p class="text-xs text-onSurfaceVariant/60">
               {{ stats.timeElapsed }}s • {{ logs.length }} logs •
-              {{ hasUnreadLogs ? 'New messages' : 'No new messages' }}
+              <span :class="hasUnreadLogs ? 'text-primary' : 'text-onSurfaceVariant/60'">
+                {{ hasUnreadLogs ? 'New messages' : 'No new messages' }}
+              </span>
             </p>
           </div>
         </div>
@@ -69,9 +71,13 @@
       leave-from-class="opacity-100 max-h-96"
       leave-to-class="opacity-0 max-h-0"
     >
-      <div v-if="shouldShowContent" class="terminal-content-wrapper">
-        <div class="terminal-content bg-surfaceContainerHighest" :style="terminalStyle">
-          <div v-for="(log, index) in visibleLogs" :key="index" class="terminal-line group">
+      <div v-if="shouldShowContent" class="terminal-content-wrapper" ref="contentWrapper">
+        <div
+          class="terminal-content bg-surfaceContainerHighest"
+          :style="terminalStyle"
+          ref="contentElement"
+        >
+          <div v-for="(log, index) in logs" :key="index" class="terminal-line group">
             <span class="text-onSurfaceVariant/60 text-xs">[{{ formatTime(log.timestamp) }}]</span>
             <span :class="getLogClass(log)">{{ log.message }}</span>
             <span
@@ -120,8 +126,8 @@ const isExpanded = ref(false)
 const hasUnreadLogs = ref(false)
 const lastLogTimestamp = ref<number>(0)
 const collapseTimeout = ref<number | null>(null)
-
-const maxVisibleLines = 15
+const contentWrapper = ref<HTMLElement | null>(null)
+const contentElement = ref<HTMLElement | null>(null)
 
 const terminalStyle = computed(() => ({
   backgroundColor: 'var(--color-surfaceContainerHighest)',
@@ -135,10 +141,6 @@ const statusMessage = computed(() => {
   if (logs.value.length === 0) return 'System Terminal - Ready'
   const lastLog = logs.value[logs.value.length - 1]
   return `${lastLog.context}: ${lastLog.message}`
-})
-
-const visibleLogs = computed(() => {
-  return logs.value.slice(-maxVisibleLines)
 })
 
 const shouldShowContent = computed(() => {
@@ -205,6 +207,7 @@ const toggleExpanded = () => {
   if (isExpanded.value) {
     hasUnreadLogs.value = false
     resetCollapseTimeout()
+    scrollToBottom()
   }
 }
 
@@ -213,6 +216,14 @@ const clearLogs = () => {
   startTime.value = Date.now()
   hasUnreadLogs.value = false
   logger.info('Terminal logs cleared', { context: 'Terminal' })
+}
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (contentElement.value) {
+      contentElement.value.scrollTop = contentElement.value.scrollHeight
+    }
+  })
 }
 
 const resetCollapseTimeout = () => {
@@ -232,20 +243,20 @@ const resetCollapseTimeout = () => {
 const handleNewLog = (logEntry: LogEntry) => {
   logs.value.push(logEntry)
   lastLogTimestamp.value = Date.now()
-  hasUnreadLogs.value = !isExpanded.value
 
+  // Auto-expand cuando hay nuevos logs
+  if (!isExpanded.value) {
+    isExpanded.value = true
+    hasUnreadLogs.value = false
+  }
+
+  // Mantener un límite de logs
   if (logs.value.length > 200) {
     logs.value = logs.value.slice(-200)
   }
 
-  // Auto-expand cuando hay nuevos logs importantes
-  if (
-    !isExpanded.value &&
-    (logEntry.level === LogLevel.ERROR || logEntry.level === LogLevel.WARN)
-  ) {
-    isExpanded.value = true
-    hasUnreadLogs.value = false
-  }
+  // Scroll al fondo cuando se agregan nuevos logs
+  scrollToBottom()
 
   resetCollapseTimeout()
 }
@@ -283,11 +294,19 @@ onUnmounted(() => {
   }
 })
 
-// Watch for expansion changes to manage timeout
+// Watch for expansion changes to manage timeout and scroll
 watch(isExpanded, (newValue) => {
   if (newValue) {
     hasUnreadLogs.value = false
     resetCollapseTimeout()
+    scrollToBottom()
+  }
+})
+
+// Watch for logs changes to auto-scroll
+watch(logs, () => {
+  if (isExpanded.value) {
+    scrollToBottom()
   }
 })
 
@@ -313,14 +332,44 @@ defineExpose({
 .terminal-header {
   transition: background-color 0.2s ease;
   border-bottom: 1px solid var(--color-outlineVariant);
+  position: relative;
 }
 
 .terminal-header:hover {
   background-color: var(--color-surfaceContainerHighest);
 }
 
+/* Indicador de mensajes no leídos */
+.terminal-header::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  background-color: var(--color-primary);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  animation: pulse 2s infinite;
+}
+
+.has-unread .terminal-header::after {
+  opacity: 1;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 .terminal-content-wrapper {
-  max-height: 384px; /* 96 * 4 = 384px para 4 líneas de 96px cada una */
+  max-height: 384px;
   overflow: hidden;
 }
 
@@ -330,20 +379,23 @@ defineExpose({
   overflow-y: auto;
   scrollbar-width: thin;
   border-top: 1px solid var(--color-outlineVariant);
+  display: flex;
+  flex-direction: column;
 }
 
 .terminal-content::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .terminal-content::-webkit-scrollbar-track {
   background: var(--color-surfaceContainerHigh);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .terminal-content::-webkit-scrollbar-thumb {
   background: var(--color-outlineVariant);
-  border-radius: 3px;
+  border-radius: 4px;
+  border: 2px solid var(--color-surfaceContainerHigh);
 }
 
 .terminal-content::-webkit-scrollbar-thumb:hover {
@@ -355,12 +407,12 @@ defineExpose({
   align-items: baseline;
   gap: 0.5rem;
   margin-bottom: 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: pre-wrap;
+  word-break: break-word;
   line-height: 1.4;
-  padding: 0.1rem 0.25rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
+  flex-shrink: 0;
 }
 
 .terminal-line:hover {
@@ -387,24 +439,6 @@ defineExpose({
   }
 }
 
-/* Indicador de mensajes no leídos */
-.terminal-header::after {
-  content: '';
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 8px;
-  height: 8px;
-  background-color: var(--color-primary);
-  border-radius: 50%;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.terminal-header:has(+ .has-unread)::after {
-  opacity: 1;
-}
-
 /* Responsive design */
 @media (max-width: 768px) {
   .terminal-content-wrapper {
@@ -418,6 +452,22 @@ defineExpose({
   .terminal-line {
     font-size: 0.7rem;
     gap: 0.3rem;
+    padding: 0.2rem 0.4rem;
   }
+
+  .terminal-content {
+    padding: 0.5rem;
+  }
+}
+
+/* Mejoras de accesibilidad */
+.terminal-content:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.terminal-line:focus-within {
+  background-color: var(--color-surfaceContainerHigh);
+  outline: 1px solid var(--color-outlineVariant);
 }
 </style>

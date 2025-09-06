@@ -92,169 +92,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useGoogleGenAI } from '@/composables/useGoogleGenAI'
-import { useScraper } from '@/composables/useScraper'
+import { useArticleProcessor } from '@/composables/useArticleProcessor'
 import ThreadPreview from '@/components/ThreadPreview.vue'
 import TwitterPublish from '@/components/TwitterPublish.vue'
-import type { ThreadTweet } from '@/core/types'
-import { logger, handleError, translateError } from '@/utils/logger'
+import { logger } from '@/utils/logger'
 
 const route = useRoute()
-const { scrapeContent } = useScraper()
-const { generateThread, isGenerating: isAIGenerating } = useGoogleGenAI()
-
-const tweets = ref<ThreadTweet[]>([])
-const articleContent = ref('')
-const articleImages = ref<string[]>([])
-const errorMessage = ref<string>('')
-const isLoading = ref(false)
-
-const decodedUrl = computed(() => {
-  return route.query.url ? decodeURIComponent(route.query.url as string) : ''
-})
-
-// Estadísticas del proceso para logging
-const processStats = computed(() => ({
-  hasUrl: !!route.query.url,
-  urlLength: decodedUrl.value.length,
-  tweetCount: tweets.value.length,
-  contentLength: articleContent.value.length,
-  imageCount: articleImages.value.length,
-  hasError: !!errorMessage.value,
-}))
-
-const loadArticle = async () => {
-  errorMessage.value = ''
-  isLoading.value = true
-
-  logger.info('Iniciando carga de artículo', {
-    context: 'SummaryView',
-    data: { hasUrl: !!route.query.url },
-  })
-
-  if (!route.query.url) {
-    errorMessage.value = 'No se proporcionó URL para procesar'
-    logger.warn('No URL provided in route query', {
-      context: 'SummaryView',
-      data: { queryParams: route.query },
-    })
-    isLoading.value = false
-    return
-  }
-
-  try {
-    const url = decodeURIComponent(route.query.url as string)
-    logger.info('Iniciando procesamiento de artículo', {
-      context: 'SummaryView',
-      data: { url: url.substring(0, 50) + (url.length > 50 ? '...' : '') },
-    })
-
-    // 1. Scraping del contenido
-    logger.info('Iniciando scraping de contenido', {
-      context: 'SummaryView',
-      data: { url: url.substring(0, 30) + '...' },
-    })
-
-    const contentResult = await scrapeContent(url)
-    articleContent.value = contentResult.content
-    articleImages.value = contentResult.images || []
-
-    logger.success('Contenido extraído exitosamente', {
-      context: 'SummaryView',
-      data: {
-        contentLength: contentResult.content.length,
-        title:
-          contentResult.title.substring(0, 30) + (contentResult.title.length > 30 ? '...' : ''),
-        imageCount: contentResult.images?.length || 0,
-        hasAuthor: !!contentResult.author,
-        hasExcerpt: !!contentResult.excerpt,
-      },
-    })
-
-    // Validar longitud mínima de contenido
-    if (contentResult.content.length < 300) {
-      const errorMsg = `Contenido insuficiente (${contentResult.content.length} caracteres). Mínimo 300 requeridos.`
-      logger.warn('Contenido demasiado corto para generar hilo', {
-        context: 'SummaryView',
-        data: {
-          contentLength: contentResult.content.length,
-          minRequired: 300,
-        },
-      })
-      throw new Error(errorMsg)
-    }
-
-    // 2. Generar hilo con Google IA
-    logger.info('Iniciando generación de hilo con IA', {
-      context: 'SummaryView',
-      data: {
-        contentLength: contentResult.content.length,
-        imageCount: articleImages.value.length,
-      },
-    })
-
-    const generatedTweets = await generateThread(contentResult.content, articleImages.value)
-    tweets.value = generatedTweets
-
-    logger.success('Hilo de Twitter generado exitosamente', {
-      context: 'SummaryView',
-      data: {
-        tweetCount: generatedTweets.length,
-        totalCharacters: generatedTweets.reduce((sum, t) => sum + t.charCount, 0),
-        avgTweetLength: Math.round(
-          generatedTweets.reduce((sum, t) => sum + t.charCount, 0) / generatedTweets.length,
-        ),
-        imagesUsed: generatedTweets.filter((t) => t.imageUrl).length,
-        longTweets: generatedTweets.filter((t) => t.charCount > 280).length,
-      },
-    })
-
-    // Guardar estadísticas finales
-    logger.info('Procesamiento completado exitosamente', {
-      context: 'SummaryView',
-      data: processStats.value,
-    })
-  } catch (error) {
-    console.error('❌ Error processing article:', error)
-    const appError = handleError(error, 'SummaryView')
-    errorMessage.value = translateError(appError)
-
-    logger.error('Error en el procesamiento del artículo', {
-      context: 'SummaryView',
-      data: {
-        error: appError.message,
-        originalError: error instanceof Error ? error.message : 'Unknown error',
-        url: decodedUrl.value.substring(0, 30) + '...',
-        ...processStats.value,
-      },
-    })
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const retry = () => {
-  logger.info('Reintentando procesamiento de artículo', {
-    context: 'SummaryView',
-    data: { previousError: errorMessage.value },
-  })
-  loadArticle()
-}
-
-const handleTweetsUpdated = (updatedTweets: ThreadTweet[]) => {
-  tweets.value = updatedTweets
-  logger.info('Tweets actualizados por el usuario', {
-    context: 'SummaryView',
-    data: {
-      tweetCount: updatedTweets.length,
-      longTweets: updatedTweets.filter((t) => t.charCount > 280).length,
-      totalCharacters: updatedTweets.reduce((sum, t) => sum + t.charCount, 0),
-      imagesUsed: updatedTweets.filter((t) => t.imageUrl).length,
-    },
-  })
-}
+const {
+  tweets,
+  articleContent,
+  errorMessage,
+  isLoading,
+  decodedUrl,
+  loadArticle,
+  retry,
+  handleTweetsUpdated,
+} = useArticleProcessor()
 
 // Watch for URL changes
 watch(
@@ -263,10 +118,7 @@ watch(
     if (newUrl && newUrl !== oldUrl) {
       logger.info('URL cambiada, recargando contenido', {
         context: 'SummaryView',
-        data: {
-          oldUrl: oldUrl ? 'present' : 'none',
-          newUrl: 'present',
-        },
+        data: { oldUrl: oldUrl ? 'present' : 'none', newUrl: 'present' },
       })
       loadArticle()
     }
@@ -277,7 +129,6 @@ watch(
 onMounted(() => {
   logger.info('Componente SummaryView montado', {
     context: 'SummaryView',
-    data: processStats.value,
   })
 
   if (route.query.url) {
@@ -298,7 +149,6 @@ onUnmounted(() => {
       processed: tweets.value.length > 0,
       finalTweetCount: tweets.value.length,
       hadError: !!errorMessage.value,
-      contentLength: articleContent.value.length,
     },
   })
 })
