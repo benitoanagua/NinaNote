@@ -25,7 +25,9 @@ export const useImageManager = () => {
       data: {
         availableImages: availableImages.length,
         tweetCount,
-        sampleImages: availableImages.slice(0, 3).map((img) => img.substring(0, 30) + '...'),
+        availableImagesSample: availableImages
+          .slice(0, 3)
+          .map((img) => img.substring(0, 30) + '...'),
       },
     })
 
@@ -35,31 +37,34 @@ export const useImageManager = () => {
       try {
         let imageUrl = ''
 
-        // Estrategia de distribución mejorada
-        if (availableImages.length > 0) {
-          // Usar imágenes disponibles de manera round-robin
-          const imageIndex = i % availableImages.length
-          const selectedImage = availableImages[imageIndex]
-
-          if (isValidImageUrl(selectedImage)) {
-            // Usar imagen real con overlay numerado
-            imageUrl = await imageGenerator.generateNumberedImage(i, selectedImage)
-            logger.debug(`Imagen con overlay generada para tweet ${i + 1}`, {
+        // Comportamiento según las reglas especificadas
+        if (availableImages.length === 0) {
+          // CASO 4: No hay imágenes - generar sólida con numeración
+          imageUrl = await imageGenerator.generateNumberedImage(i)
+          logger.debug(`Caso 4: Imagen sólida generada para tweet ${i + 1}`, {
+            context: 'ImageManager',
+          })
+        } else if (i < availableImages.length) {
+          // CASO 1 y 2: Hay imagen disponible para este índice
+          if (i === 0 && availableImages.length === 1) {
+            // CASO 2: Solo una imagen - primera imagen sin modificar
+            imageUrl = availableImages[0]
+            logger.debug(`Caso 2: Imagen original sin modificar para tweet ${i + 1}`, {
               context: 'ImageManager',
-              data: { imageUrl: selectedImage.substring(0, 50) + '...' },
             })
           } else {
-            // Imagen inválida, generar sólida
-            imageUrl = await imageGenerator.generateNumberedImage(i)
-            logger.warn(`Imagen inválida, usando sólida para tweet ${i + 1}`, {
+            // CASO 1: Imagen disponible - usar tal cual
+            imageUrl = availableImages[i]
+            logger.debug(`Caso 1: Imagen disponible para tweet ${i + 1}`, {
               context: 'ImageManager',
             })
           }
         } else {
-          // No hay imágenes, generar sólida
-          imageUrl = await imageGenerator.generateNumberedImage(i)
-          logger.debug(`Imagen sólida generada para tweet ${i + 1}`, {
+          // CASO 3: Más tweets que imágenes - usar primera imagen con overlay
+          imageUrl = await imageGenerator.generateNumberedImage(i, availableImages[0])
+          logger.debug(`Caso 3: Imagen con overlay para tweet ${i + 1}`, {
             context: 'ImageManager',
+            data: { baseImage: availableImages[0].substring(0, 30) + '...' },
           })
         }
 
@@ -69,21 +74,143 @@ export const useImageManager = () => {
           context: 'ImageManager',
           data: error,
         })
-        distributedImages.push('') // Fallback a sin imagen
+        // Fallback: imagen sólida
+        try {
+          const fallbackImage = await imageGenerator.generateNumberedImage(i)
+          distributedImages.push(fallbackImage)
+        } catch {
+          distributedImages.push('')
+        }
       }
     }
 
-    const successfulImages = distributedImages.filter((img) => img && img !== '')
+    const stats = getDistributionStats(availableImages.length, tweetCount, distributedImages)
     logger.success('Imágenes distribuidas exitosamente', {
       context: 'ImageManager',
-      data: {
-        distributed: successfulImages.length,
-        total: distributedImages.length,
-        successRate: Math.round((successfulImages.length / distributedImages.length) * 100),
-      },
+      data: stats,
     })
 
     return distributedImages
+  }
+
+  const getDistributionStats = (
+    availableCount: number,
+    tweetCount: number,
+    distributed: string[],
+  ) => {
+    const originalImages = distributed.filter((img) => img && !img.startsWith('data:image/')).length
+    const generatedImages = distributed.filter((img) => img && img.startsWith('data:image/')).length
+    const noImages = distributed.filter((img) => !img).length
+
+    return {
+      availableImages: availableCount,
+      tweetCount,
+      originalImagesUsed: originalImages,
+      generatedImages: generatedImages,
+      tweetsWithoutImages: noImages,
+      distributionCase: getDistributionCase(availableCount, tweetCount),
+    }
+  }
+
+  const getDistributionCase = (availableCount: number, tweetCount: number): string => {
+    if (availableCount === 0) return 'Caso 4: Sin imágenes - todas generadas'
+    if (availableCount === 1 && tweetCount > 1)
+      return 'Caso 2: 1 imagen - primera original, resto con overlay'
+    if (availableCount >= tweetCount) return 'Caso 1: Suficientes imágenes - todas originales'
+    return 'Caso 3: Más tweets que imágenes - algunas con overlay'
+  }
+
+  const filterContentImages = (images: string[], url: string): string[] => {
+    const filteredImages = images.filter((imageUrl) => {
+      // Excluir imágenes comunes de publicidad/header
+      const lowerUrl = imageUrl.toLowerCase()
+
+      // Patrones comunes de imágenes no deseadas
+      const unwantedPatterns = [
+        'logo',
+        'header',
+        'footer',
+        'banner',
+        'ad',
+        'ads',
+        'advertisement',
+        'social',
+        'icon',
+        'avatar',
+        'sponsor',
+        'promo',
+        'widget',
+        'button',
+        'menu',
+        'nav',
+        'thumbnail',
+        'placeholder',
+        'pixel',
+        'tracking',
+      ]
+
+      // Excluir URLs que contengan estos patrones
+      const hasUnwantedPattern = unwantedPatterns.some((pattern) => lowerUrl.includes(pattern))
+
+      // Excluir imágenes muy pequeñas (probablemente iconos)
+      const isLikelyIcon =
+        lowerUrl.includes('x') &&
+        (lowerUrl.includes('16x16') || lowerUrl.includes('32x32') || lowerUrl.includes('64x64'))
+
+      return !hasUnwantedPattern && !isLikelyIcon
+    })
+
+    logger.debug('Imágenes filtradas (removida publicidad/header)', {
+      context: 'ImageManager',
+      data: {
+        originalCount: images.length,
+        filteredCount: filteredImages.length,
+        removedCount: images.length - filteredImages.length,
+        sample: filteredImages.slice(0, 3).map((img) => img.substring(0, 30) + '...'),
+      },
+    })
+
+    return filteredImages.slice(0, 10) // Limitar a 10 imágenes máximo
+  }
+
+  const sortImagesByRelevance = (images: string[]): string[] => {
+    // Asumir que las imágenes más grandes son más relevantes
+    // Las URLs con dimensiones en el nombre suelen ser más grandes
+    return images.sort((a, b) => {
+      const getSizeScore = (url: string) => {
+        const lowerUrl = url.toLowerCase()
+        if (lowerUrl.includes('1200x') || lowerUrl.includes('1000x')) return 3
+        if (lowerUrl.includes('800x') || lowerUrl.includes('600x')) return 2
+        if (lowerUrl.includes('400x') || lowerUrl.includes('300x')) return 1
+        return 0
+      }
+
+      return getSizeScore(b) - getSizeScore(a)
+    })
+  }
+
+  const extractValidImages = (images: string[], sourceUrl?: string): string[] => {
+    // Primero filtrar imágenes válidas
+    const validImages = images.filter((img) => isValidImageUrl(img))
+
+    // Luego filtrar contenido no deseado
+    const contentImages = filterContentImages(validImages, sourceUrl || '')
+
+    // Ordenar por relevancia
+    const sortedImages = sortImagesByRelevance(contentImages)
+
+    logger.debug('Imágenes de contenido extraídas', {
+      context: 'ImageManager',
+      data: {
+        originalCount: images.length,
+        validCount: validImages.length,
+        contentCount: contentImages.length,
+        finalCount: sortedImages.length,
+        finalImages: sortedImages.slice(0, 3).map((img) => img.substring(0, 30) + '...'),
+      },
+    })
+
+    return sortedImages
   }
 
   const handleTweetImageError = async (
@@ -97,21 +224,8 @@ export const useImageManager = () => {
     })
 
     try {
-      let newImageUrl = ''
-
-      if (tweet.imageUrl && !tweet.imageUrl.startsWith('data:image/')) {
-        // Intentar regenerar con la misma imagen de base
-        newImageUrl = await imageGenerator.generateNumberedImage(index, tweet.imageUrl)
-        logger.info(`Imagen regenerada para tweet ${index + 1}`, {
-          context: 'ImageManager',
-        })
-      } else {
-        // Generar nueva imagen sólida
-        newImageUrl = await imageGenerator.generateNumberedImage(index)
-        logger.info(`Imagen de fallback generada para tweet ${index + 1}`, {
-          context: 'ImageManager',
-        })
-      }
+      // Siempre generar imagen sólida como fallback
+      const newImageUrl = await imageGenerator.generateNumberedImage(index)
 
       const updatedTweets = [...allTweets]
       updatedTweets[index] = {
@@ -119,9 +233,14 @@ export const useImageManager = () => {
         imageUrl: newImageUrl,
       }
 
+      logger.info(`Imagen de fallback generada para tweet ${index + 1}`, {
+        context: 'ImageManager',
+      })
+
       return updatedTweets
     } catch (error) {
       logger.error(`Error manejando fallo de imagen para tweet ${index + 1}`, {
+        // ← Cambiado i por index
         context: 'ImageManager',
         data: error,
       })
@@ -172,21 +291,6 @@ export const useImageManager = () => {
     }
 
     return updatedTweets
-  }
-
-  const extractValidImages = (images: string[]): string[] => {
-    const validImages = images.filter((img) => isValidImageUrl(img)).slice(0, 10) // Límite de 10 imágenes
-
-    logger.debug('Imágenes validadas extraídas', {
-      context: 'ImageManager',
-      data: {
-        originalCount: images.length,
-        validCount: validImages.length,
-        sample: validImages.slice(0, 3).map((img) => img.substring(0, 30) + '...'),
-      },
-    })
-
-    return validImages
   }
 
   const getImageStats = (tweets: ThreadTweet[]) => {

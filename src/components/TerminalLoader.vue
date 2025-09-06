@@ -108,8 +108,8 @@
             nina-note@terminal:~$ System ready. Logs will stream here...
           </div>
 
-          <!-- Línea final con cursor parpadeante (siempre presente) -->
-          <div class="terminal-line terminal-prompt">
+          <!-- Línea final con cursor parpadeante (solo cuando no está cargando) -->
+          <div v-if="!isLoading" class="terminal-line terminal-prompt">
             <span class="text-onSurfaceVariant/60 text-xs whitespace-nowrap">
               nina-note@terminal:~$
             </span>
