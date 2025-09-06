@@ -17,9 +17,9 @@
               {{ statusMessage }}
             </p>
             <p class="text-xs text-onSurfaceVariant/60">
-              {{ stats.timeElapsed }}s • {{ logs.length }} logs •
+              {{ stats.timeElapsed }}s • {{ totalLogs }} total • {{ visibleLogs.length }} visible
               <span :class="hasUnreadLogs ? 'text-primary' : 'text-onSurfaceVariant/60'">
-                {{ hasUnreadLogs ? 'New messages' : 'No new messages' }}
+                {{ hasUnreadLogs ? ' • New messages' : '' }}
               </span>
             </p>
           </div>
@@ -27,7 +27,7 @@
 
         <div class="flex items-center space-x-3 ml-4">
           <button
-            v-if="logs.length > 0"
+            v-if="totalLogs > 0"
             @click.stop="clearLogs"
             class="text-xs text-onSurfaceVariant/60 hover:text-onSurfaceVariant px-2 py-1 rounded transition-colors"
             title="Clear all logs"
@@ -67,8 +67,8 @@
       enter-active-class="transition-all duration-300 ease-out"
       leave-active-class="transition-all duration-300 ease-in"
       enter-from-class="opacity-0 max-h-0"
-      enter-to-class="opacity-100 max-h-96"
-      leave-from-class="opacity-100 max-h-96"
+      enter-to-class="opacity-100 max-h-80"
+      leave-from-class="opacity-100 max-h-80"
       leave-to-class="opacity-0 max-h-0"
     >
       <div v-if="isExpanded" class="terminal-content-wrapper" ref="contentWrapper">
@@ -77,25 +77,51 @@
           :style="terminalStyle"
           ref="contentElement"
         >
-          <div v-for="(log, index) in logs" :key="index" class="terminal-line group">
-            <span class="text-onSurfaceVariant/60 text-xs">[{{ formatTime(log.timestamp) }}]</span>
-            <span :class="getLogClass(log)">{{ log.message }}</span>
+          <!-- Solo mostrar logs visibles -->
+          <div v-for="(log, index) in visibleLogs" :key="log.id" class="terminal-line group">
+            <span class="text-onSurfaceVariant/60 text-xs whitespace-nowrap">
+              [{{ formatTime(log.timestamp) }}]
+            </span>
+            <span :class="getLogClass(log)" class="flex-1 min-w-0">{{ log.message }}</span>
             <span
               v-if="log.data"
-              class="text-onSurfaceVariant/40 text-xs ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+              class="text-onSurfaceVariant/40 text-xs ml-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
             >
               {{ formatData(log.data) }}
             </span>
           </div>
 
+          <!-- Línea de carga actual -->
           <div v-if="isLoading" class="terminal-line">
-            <span class="text-onSurfaceVariant/60 text-xs">[{{ currentTime }}]</span>
-            <span class="text-primary">Processing</span>
+            <span class="text-onSurfaceVariant/60 text-xs whitespace-nowrap">
+              [{{ currentTime }}]
+            </span>
+            <span class="text-primary flex-1">Processing</span>
             <span class="blinking-cursor text-primary">_</span>
           </div>
 
-          <div v-if="logs.length === 0" class="terminal-line text-onSurfaceVariant/40 text-xs">
-            System terminal ready. Logs will appear here as processes run.
+          <!-- Prompt de terminal cuando no hay actividad -->
+          <div
+            v-if="!isLoading && visibleLogs.length === 0"
+            class="terminal-line text-onSurfaceVariant/40 text-xs"
+          >
+            nina-note@terminal:~$ System ready. Logs will stream here...
+          </div>
+
+          <!-- Línea final con cursor parpadeante (siempre presente) -->
+          <div class="terminal-line terminal-prompt">
+            <span class="text-onSurfaceVariant/60 text-xs whitespace-nowrap">
+              nina-note@terminal:~$
+            </span>
+            <span class="blinking-cursor text-onSurfaceVariant/80">_</span>
+          </div>
+
+          <!-- Indicador de logs truncados -->
+          <div
+            v-if="totalLogs > maxVisibleLogs && visibleLogs.length >= maxVisibleLogs"
+            class="terminal-line text-onSurfaceVariant/40 text-xs border-t border-outlineVariant/20 pt-2 mt-2"
+          >
+            ... {{ totalLogs - maxVisibleLogs }} earlier messages (use clear to reset buffer)
           </div>
         </div>
       </div>
@@ -104,198 +130,67 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { logger, type LogEntry, LogLevel } from '@/utils/logger'
+import { useTerminal } from '@/composables/useTerminal'
 
 interface Props {
   isLoading?: boolean
+  maxVisibleLogs?: number
+  maxTotalLogs?: number
+  autoExpand?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
+  maxVisibleLogs: 15,
+  maxTotalLogs: 60,
+  autoExpand: true,
 })
 
-const logs = ref<LogEntry[]>([])
-const startTime = ref<number>(Date.now())
-const currentTime = ref<string>('')
-const isExpanded = ref(true) // ← Siempre expandido por defecto
-const hasUnreadLogs = ref(false)
-const lastLogTimestamp = ref<number>(0)
-const contentWrapper = ref<HTMLElement | null>(null)
-const contentElement = ref<HTMLElement | null>(null)
+// Usar el composable
+const {
+  // Estado reactivo
+  totalLogs,
+  visibleLogs,
+  isExpanded,
+  hasUnreadLogs,
+  currentTime,
+  statusMessage,
+  stats,
+  terminalStyle,
 
-const terminalStyle = computed(() => ({
-  backgroundColor: 'var(--color-surfaceContainerHighest)',
-  color: 'var(--color-onSurfaceVariant)',
-  fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-  fontSize: '0.75rem',
-  lineHeight: '1.25',
-}))
+  // Referencias DOM
+  contentWrapper,
+  contentElement,
 
-const statusMessage = computed(() => {
-  if (logs.value.length === 0) return 'System Terminal - Ready'
-  const lastLog = logs.value[logs.value.length - 1]
-  return `${lastLog.context}: ${lastLog.message}`
+  // Métodos de utilidad
+  formatTime,
+  formatData,
+  getLogClass,
+
+  // Métodos de control
+  toggleExpanded,
+  clearLogs,
+  addLog,
+  getLogs,
+  exportLogs,
+} = useTerminal({
+  maxVisibleLogs: props.maxVisibleLogs,
+  maxTotalLogs: props.maxTotalLogs,
+  autoExpand: props.autoExpand,
 })
 
-const visibleLogs = computed(() => {
-  return logs.value
-})
-
-const stats = computed(() => {
-  const totalTime = ((Date.now() - startTime.value) / 1000).toFixed(1)
-  const infoCount = logs.value.filter((log) => log.level === LogLevel.INFO).length
-  const successCount = logs.value.filter((log) => log.level === LogLevel.SUCCESS).length
-  const warningCount = logs.value.filter((log) => log.level === LogLevel.WARN).length
-  const errorCount = logs.value.filter((log) => log.level === LogLevel.ERROR).length
-
-  return {
-    infoCount,
-    successCount,
-    warningCount,
-    errorCount,
-    timeElapsed: totalTime,
-  }
-})
-
-const formatTime = (timestamp: number) => {
-  return new Date(timestamp).toLocaleTimeString('en-US', {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
-}
-
-const formatData = (data: any): string => {
-  if (typeof data === 'object') {
-    try {
-      if (data.contentLength) return `${data.contentLength} chars`
-      if (data.tweetCount) return `${data.tweetCount} tweets`
-      if (data.imageCount) return `${data.imageCount} images`
-      if (data.url) return `url: ${data.url.substring(0, 20)}...`
-      if (data.error) return `error: ${data.error.message || 'Unknown'}`
-
-      const str = JSON.stringify(data)
-      return str.length > 30 ? str.substring(0, 30) + '...' : str
-    } catch {
-      return 'data'
-    }
-  }
-  return String(data).substring(0, 30) + (String(data).length > 30 ? '...' : '')
-}
-
-const getLogClass = (log: LogEntry) => {
-  const baseClasses = 'text-sm'
-  const levelClasses = {
-    [LogLevel.INFO]: 'text-onSurfaceVariant',
-    [LogLevel.SUCCESS]: 'text-primary font-medium',
-    [LogLevel.WARN]: 'text-yellow-500',
-    [LogLevel.ERROR]: 'text-error font-medium',
-    [LogLevel.DEBUG]: 'text-onSurfaceVariant/60',
-  }
-  return `${baseClasses} ${levelClasses[log.level] || 'text-onSurfaceVariant'}`
-}
-
-const toggleExpanded = () => {
-  isExpanded.value = !isExpanded.value
-  if (isExpanded.value) {
-    hasUnreadLogs.value = false
-    scrollToBottom()
-  }
-}
-
-const clearLogs = () => {
-  logs.value = []
-  startTime.value = Date.now()
-  hasUnreadLogs.value = false
-  logger.info('Terminal logs cleared', { context: 'Terminal' })
-}
-
-const scrollToBottom = () => {
-  nextTick(() => {
-    if (contentElement.value) {
-      // Scroll suave al final
-      contentElement.value.scrollTo({
-        top: contentElement.value.scrollHeight,
-        behavior: 'smooth',
-      })
-    }
-  })
-}
-
-const handleNewLog = (logEntry: LogEntry) => {
-  logs.value.push(logEntry)
-  lastLogTimestamp.value = Date.now()
-
-  // Siempre mantener expandido cuando hay nuevos logs
-  if (!isExpanded.value) {
-    isExpanded.value = true
-    hasUnreadLogs.value = false
-  }
-
-  // Mantener máximo 500 líneas en el log
-  if (logs.value.length > 500) {
-    logs.value = logs.value.slice(-500)
-  }
-
-  // Scroll automático al fondo cuando llegan nuevos logs
-  scrollToBottom()
-}
-
-let removeListener: (() => void) | null = null
-let timeInterval: number | null = null
-
-onMounted(() => {
-  const updateTime = () => {
-    currentTime.value = new Date().toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
-  }
-
-  updateTime()
-  timeInterval = window.setInterval(updateTime, 1000)
-
-  removeListener = logger.addListener(handleNewLog)
-
-  logger.info('Fixed terminal initialized', { context: 'Terminal' })
-
-  // Scroll inicial al fondo
-  scrollToBottom()
-})
-
-onUnmounted(() => {
-  if (timeInterval) {
-    clearInterval(timeInterval)
-  }
-  if (removeListener) {
-    removeListener()
-  }
-})
-
-// Scroll al fondo cuando se expande
-watch(isExpanded, (newValue) => {
-  if (newValue) {
-    hasUnreadLogs.value = false
-    scrollToBottom()
-  }
-})
-
-// Scroll automático cuando se agregan nuevos logs
-watch(logs, () => {
-  if (isExpanded.value) {
-    scrollToBottom()
-  }
-})
-
+// Exponer métodos públicos
 defineExpose({
   clearLogs,
   toggleExpanded,
-  getLogCount: () => logs.value.length,
+  expand: () => (isExpanded.value = true),
+  collapse: () => (isExpanded.value = false),
+  addLog,
+  getLogs,
+  getLogCount: () => totalLogs.value,
+  getVisibleLogCount: () => visibleLogs.value.length,
   getStats: () => stats.value,
+  exportLogs,
 })
 </script>
 
@@ -320,37 +215,8 @@ defineExpose({
   background-color: var(--color-surfaceContainerHighest);
 }
 
-/* Indicador de mensajes no leídos */
-.terminal-header::after {
-  content: '';
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 8px;
-  height: 8px;
-  background-color: var(--color-primary);
-  border-radius: 50%;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  animation: pulse 2s infinite;
-}
-
-.has-unread .terminal-header::after {
-  opacity: 1;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
 .terminal-content-wrapper {
-  max-height: 384px;
+  max-height: 20rem; /* Fixed height like a real terminal */
   overflow: hidden;
 }
 
@@ -387,13 +253,13 @@ defineExpose({
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
-  margin-bottom: 0.25rem;
-  white-space: pre-wrap;
-  word-break: break-word;
+  margin-bottom: 0.125rem;
+  white-space: nowrap;
   line-height: 1.4;
-  padding: 0.25rem 0.5rem;
+  padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   flex-shrink: 0;
+  min-height: 1.2rem;
 }
 
 .terminal-line:hover {
@@ -402,6 +268,12 @@ defineExpose({
 
 .terminal-line:last-child {
   margin-bottom: 0;
+}
+
+.terminal-prompt {
+  margin-top: 0.25rem;
+  border-top: 1px solid var(--color-outlineVariant/10);
+  padding-top: 0.375rem !important;
 }
 
 .blinking-cursor {
@@ -423,7 +295,7 @@ defineExpose({
 /* Responsive design */
 @media (max-width: 768px) {
   .terminal-content-wrapper {
-    max-height: 256px;
+    max-height: 16rem;
   }
 
   .terminal-header {
@@ -433,7 +305,7 @@ defineExpose({
   .terminal-line {
     font-size: 0.7rem;
     gap: 0.3rem;
-    padding: 0.2rem 0.4rem;
+    padding: 0.1rem 0.2rem;
   }
 
   .terminal-content {
@@ -441,7 +313,7 @@ defineExpose({
   }
 }
 
-/* Mejoras de accesibilidad */
+/* Accessibility improvements */
 .terminal-content:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
