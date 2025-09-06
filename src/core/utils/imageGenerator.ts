@@ -1,5 +1,10 @@
+import { logger } from '@/utils/logger'
+import { imageProxy, type ImageProxy } from './imageProxy'
+
 export class ImageGenerator {
-  static async generateNumberedImage(index: number, baseImageUrl?: string): Promise<string> {
+  constructor(private proxy: ImageProxy = imageProxy) {}
+
+  async generateNumberedImage(index: number, baseImageUrl?: string): Promise<string> {
     try {
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
@@ -8,12 +13,12 @@ export class ImageGenerator {
         throw new Error('Canvas context not available')
       }
 
-      // Tamaño estándar para imágenes de Twitter
+      // Tamaño estándar para Twitter
       canvas.width = 1200
       canvas.height = 675
 
       if (baseImageUrl) {
-        // Modo con imagen de fondo
+        // Modo con imagen de fondo usando proxy
         await this.drawImageWithOverlay(ctx, baseImageUrl, index, canvas.width, canvas.height)
       } else {
         // Modo sin imagen - solo color sólido
@@ -23,24 +28,29 @@ export class ImageGenerator {
 
       return canvas.toDataURL('image/jpeg', 0.8)
     } catch (error) {
-      console.error('Error generating numbered image:', error)
-      // Fallback a imagen simple
+      logger.error('Error generating numbered image', {
+        context: 'ImageGenerator',
+        data: error,
+      })
       return this.generateFallbackImage(index)
     }
   }
 
-  private static async drawImageWithOverlay(
+  private async drawImageWithOverlay(
     ctx: CanvasRenderingContext2D,
-    imageUrl: string,
+    originalImageUrl: string,
     index: number,
     width: number,
     height: number,
   ): Promise<void> {
     try {
-      // 1. Primera capa: Imagen de fondo
+      // 1. Obtener URL proxied
+      const imageUrl = await this.proxy.getProxiedUrl(originalImageUrl)
+
+      // 2. Cargar imagen
       const image = await this.loadImage(imageUrl)
 
-      // Dibujar imagen manteniendo aspect ratio
+      // 3. Dibujar imagen manteniendo aspect ratio
       const scale = Math.max(width / image.width, height / image.height)
       const scaledWidth = image.width * scale
       const scaledHeight = image.height * scale
@@ -49,21 +59,29 @@ export class ImageGenerator {
 
       ctx.drawImage(image, x, y, scaledWidth, scaledHeight)
 
-      // 2. Segunda capa: Color sólido con transparencia (overlay)
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)' // Overlay oscuro semi-transparente
+      // 4. Overlay semi-transparente
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
       ctx.fillRect(0, 0, width, height)
 
-      // 3. Tercera capa: Número
+      // 5. Número centrado
       this.drawNumber(ctx, index, width, height)
+
+      logger.debug('Image with overlay generated successfully', {
+        context: 'ImageGenerator',
+        data: { index, originalUrl: originalImageUrl.substring(0, 50) + '...' },
+      })
     } catch (error) {
-      console.warn('Failed to load background image, using fallback:', error)
+      logger.warn('Failed to draw image with overlay, using fallback', {
+        context: 'ImageGenerator',
+        data: error,
+      })
       // Fallback a fondo sólido
       this.drawSolidBackground(ctx, index, width, height)
       this.drawNumber(ctx, index, width, height)
     }
   }
 
-  private static drawSolidBackground(
+  private drawSolidBackground(
     ctx: CanvasRenderingContext2D,
     index: number,
     width: number,
@@ -74,7 +92,7 @@ export class ImageGenerator {
     ctx.fillRect(0, 0, width, height)
   }
 
-  private static drawNumber(
+  private drawNumber(
     ctx: CanvasRenderingContext2D,
     index: number,
     width: number,
@@ -82,7 +100,7 @@ export class ImageGenerator {
   ): void {
     const number = (index + 1).toString()
 
-    // Sombra del texto para mejor contraste
+    // Sombra para mejor contraste
     ctx.shadowColor = 'rgba(0, 0, 0, 0.8)'
     ctx.shadowBlur = 10
     ctx.shadowOffsetX = 2
@@ -102,31 +120,12 @@ export class ImageGenerator {
     ctx.shadowOffsetY = 0
   }
 
-  private static async loadImage(url: string): Promise<HTMLImageElement> {
+  private async loadImage(url: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const img = new Image()
-      img.crossOrigin = 'anonymous' // Important for CORS
+      img.crossOrigin = 'anonymous'
 
       img.onload = () => {
-        // Verificar que la imagen se cargó correctamente
-        if (img.width > 0 && img.height > 0) {
-          resolve(img)
-        } else {
-          reject(new Error('Image failed to load'))
-        }
-      }
-
-      img.onerror = (error) => {
-        reject(new Error(`Failed to load image: ${error}`))
-      }
-
-      // Timeout para evitar que se quede colgado
-      const timeout = setTimeout(() => {
-        reject(new Error('Image loading timeout'))
-      }, 10000)
-
-      img.onload = () => {
-        clearTimeout(timeout)
         if (img.width > 0 && img.height > 0) {
           resolve(img)
         } else {
@@ -135,13 +134,24 @@ export class ImageGenerator {
       }
 
       img.onerror = () => {
-        clearTimeout(timeout)
         reject(new Error('Failed to load image'))
+      }
+
+      // Timeout
+      const timeout = setTimeout(() => {
+        reject(new Error('Image loading timeout'))
+      }, 10000)
+
+      img.onload = () => {
+        clearTimeout(timeout)
+        if (img.width > 0 && img.height > 0) {
+          resolve(img)
+        }
       }
 
       img.src = url
 
-      // Si la imagen ya está en cache, puede que no dispare onload
+      // Si ya está cargada
       if (img.complete && img.width > 0 && img.height > 0) {
         clearTimeout(timeout)
         resolve(img)
@@ -149,30 +159,27 @@ export class ImageGenerator {
     })
   }
 
-  private static getColorForIndex(index: number): string {
+  private getColorForIndex(index: number): string {
     const colors = [
-      '#29AB87', // Verde
-      '#2563EB', // Azul
-      '#7C3AED', // Púrpura
-      '#DC2626', // Rojo
-      '#D97706', // Ámbar
-      '#059669', // Emerald
-      '#DB2777', // Pink
-      '#7C3AED', // Purple
-      '#F59E0B', // Amber
-      '#10B981', // Green
+      '#29AB87',
+      '#2563EB',
+      '#7C3AED',
+      '#DC2626',
+      '#D97706',
+      '#059669',
+      '#DB2777',
+      '#7C3AED',
+      '#F59E0B',
+      '#10B981',
     ]
-
     return colors[index % colors.length]
   }
 
-  private static generateFallbackImage(index: number): string {
+  private generateFallbackImage(index: number): string {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
 
-    if (!ctx) {
-      return '' // Fallback extremo
-    }
+    if (!ctx) return ''
 
     canvas.width = 600
     canvas.height = 400
@@ -190,21 +197,7 @@ export class ImageGenerator {
 
     return canvas.toDataURL('image/jpeg')
   }
-
-  // Método auxiliar para verificar si una URL de imagen es válida
-  static isValidImageUrl(url: string): boolean {
-    if (!url) return false
-    if (url.startsWith('data:image/')) return true
-
-    try {
-      const parsedUrl = new URL(url)
-      const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif']
-      const hasValidExtension = validExtensions.some((ext) =>
-        parsedUrl.pathname.toLowerCase().endsWith(ext),
-      )
-      return hasValidExtension
-    } catch {
-      return false
-    }
-  }
 }
+
+// Exportar instancia singleton
+export const imageGenerator = new ImageGenerator()

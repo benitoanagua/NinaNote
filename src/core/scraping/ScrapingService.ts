@@ -159,7 +159,7 @@ export class ScrapingService extends BaseService {
     if (ogImage && ogImage.getAttribute('content')) {
       const imageUrl = ogImage.getAttribute('content')!
       if (this.isValidImageUrl(imageUrl)) {
-        images.push(imageUrl)
+        images.push(this.ensureAbsoluteUrl(imageUrl))
       }
     }
 
@@ -168,19 +168,39 @@ export class ScrapingService extends BaseService {
     if (twitterImage && twitterImage.getAttribute('content')) {
       const imageUrl = twitterImage.getAttribute('content')!
       if (this.isValidImageUrl(imageUrl)) {
-        images.push(imageUrl)
+        images.push(this.ensureAbsoluteUrl(imageUrl))
       }
     }
 
-    // 3. Extraer imágenes del contenido principal (solo las más grandes)
+    // 3. Extraer imágenes del contenido principal
     const contentImages = Array.from(doc.querySelectorAll('img'))
-      .map((img) => img.src)
+      .map((img) => this.ensureAbsoluteUrl(img.src))
       .filter((src) => this.isValidImageUrl(src))
-      .slice(0, 5)
+      .slice(0, 10) // Limitar a 10 imágenes
 
     images.push(...contentImages)
 
     return Array.from(new Set(images)) // Eliminar duplicados
+  }
+
+  private ensureAbsoluteUrl(url: string): string {
+    if (url.startsWith('http')) return url
+    if (url.startsWith('//')) return `https:${url}`
+    if (url.startsWith('/')) {
+      // Necesitamos la URL base del sitio
+      const baseUrl = this.getBaseUrlFromDocument()
+      return `${baseUrl}${url}`
+    }
+    return url
+  }
+
+  private getBaseUrlFromDocument(): string {
+    // Intentar obtener la base URL del documento
+    const base = document.querySelector('base')
+    if (base && base.href) {
+      return base.href
+    }
+    return window.location.origin
   }
 
   private isValidImageUrl(url: string): boolean {

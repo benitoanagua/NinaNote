@@ -81,13 +81,15 @@ export const useArticleProcessor = () => {
         title:
           contentResult.title.substring(0, 30) + (contentResult.title.length > 30 ? '...' : ''),
         imageCount: contentResult.images?.length || 0,
+        imagesSample:
+          contentResult.images?.slice(0, 3).map((img) => img.substring(0, 30) + '...') || [],
       },
     })
 
     // Validar longitud mínima
     validateContentLength(contentResult.content.length)
 
-    // 2. Generar hilo con IA
+    // 2. Generar hilo con IA - ¡PASAR LAS IMÁGENES SCRAPEADAS!
     const generatedTweets = await generateThread(contentResult.content, articleImages.value)
     tweets.value = generatedTweets
 
@@ -96,6 +98,7 @@ export const useArticleProcessor = () => {
       data: {
         tweetCount: generatedTweets.length,
         totalCharacters: generatedTweets.reduce((sum, t) => sum + t.charCount, 0),
+        tweetsWithImages: generatedTweets.filter((t) => t.imageUrl).length,
       },
     })
 

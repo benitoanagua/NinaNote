@@ -4,7 +4,7 @@ import { BaseService } from '../base/BaseService'
 import { PROMPT_TEMPLATES, PromptEngine } from './PromptTemplate'
 import { logger, ErrorFactory } from '@/utils/logger'
 import { useImageManager } from '@/composables/useImageManager'
-import { ImageGenerator } from '../utils/imageGenerator'
+import { imageGenerator } from '../utils/imageGenerator' // ← Cambiado a la instancia
 
 export class GoogleGenAIService extends BaseService {
   private ai: GoogleGenAI
@@ -60,6 +60,15 @@ export class GoogleGenAIService extends BaseService {
   async generateThread(text: string, images: string[] = []): Promise<ThreadTweet[]> {
     this.logStart('Generating thread with Gemini')
     logger.ai.generating('gemini-2.0-flash')
+
+    // Log de las imágenes recibidas
+    logger.debug('Images received for thread generation', {
+      context: 'AI',
+      data: {
+        imageCount: images.length,
+        imageSample: images.slice(0, 3).map((img) => img.substring(0, 30) + '...'),
+      },
+    })
 
     try {
       const textLength = text.length
@@ -148,7 +157,7 @@ export class GoogleGenAIService extends BaseService {
         tweetCount,
       )
 
-      logger.debug('Imágenes distribuidas a tweets', {
+      logger.debug('Images distributed to tweets', {
         context: 'AI',
         data: {
           imageCount: distributedImages.filter((img) => img).length,
@@ -167,7 +176,7 @@ export class GoogleGenAIService extends BaseService {
       const fallbackImages: string[] = []
       for (let i = 0; i < tweetCount; i++) {
         try {
-          const image = await ImageGenerator.generateNumberedImage(i)
+          const image = await imageGenerator.generateNumberedImage(i)
           fallbackImages.push(image)
         } catch {
           fallbackImages.push('')

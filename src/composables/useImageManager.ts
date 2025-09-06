@@ -1,18 +1,32 @@
 import { logger } from '@/utils/logger'
-import { ImageGenerator } from '@/core/utils/imageGenerator'
+import { imageGenerator } from '@/core/utils/imageGenerator'
 import type { ThreadTweet } from '@/core/types'
 
 export const useImageManager = () => {
-  /**
-   * Distribuye imágenes entre tweets, generando imágenes numeradas cuando sea necesario
-   */
+  const isValidImageUrl = (url: string | null): boolean => {
+    if (!url) return false
+    if (url.startsWith('data:image/')) return true
+
+    try {
+      const parsedUrl = new URL(url)
+      const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif']
+      return validExtensions.some((ext) => parsedUrl.pathname.toLowerCase().endsWith(ext))
+    } catch {
+      return false
+    }
+  }
+
   const distributeImagesToTweets = async (
     availableImages: string[],
     tweetCount: number,
   ): Promise<string[]> => {
     logger.info('Distribuyendo imágenes a tweets', {
       context: 'ImageManager',
-      data: { availableImages: availableImages.length, tweetCount },
+      data: {
+        availableImages: availableImages.length,
+        tweetCount,
+        sampleImages: availableImages.slice(0, 3).map((img) => img.substring(0, 30) + '...'),
+      },
     })
 
     const distributedImages: string[] = []
@@ -21,24 +35,29 @@ export const useImageManager = () => {
       try {
         let imageUrl = ''
 
-        if (i < availableImages.length && ImageGenerator.isValidImageUrl(availableImages[i])) {
-          // Usar imagen real con overlay numerado
-          imageUrl = await ImageGenerator.generateNumberedImage(i, availableImages[i])
-          logger.debug(`Imagen con overlay generada para tweet ${i + 1}`, {
-            context: 'ImageManager',
-          })
-        } else if (
-          availableImages.length > 0 &&
-          ImageGenerator.isValidImageUrl(availableImages[0])
-        ) {
-          // Usar la primera imagen como base con overlay
-          imageUrl = await ImageGenerator.generateNumberedImage(i, availableImages[0])
-          logger.debug(`Imagen base con overlay generada para tweet ${i + 1}`, {
-            context: 'ImageManager',
-          })
+        // Estrategia de distribución mejorada
+        if (availableImages.length > 0) {
+          // Usar imágenes disponibles de manera round-robin
+          const imageIndex = i % availableImages.length
+          const selectedImage = availableImages[imageIndex]
+
+          if (isValidImageUrl(selectedImage)) {
+            // Usar imagen real con overlay numerado
+            imageUrl = await imageGenerator.generateNumberedImage(i, selectedImage)
+            logger.debug(`Imagen con overlay generada para tweet ${i + 1}`, {
+              context: 'ImageManager',
+              data: { imageUrl: selectedImage.substring(0, 50) + '...' },
+            })
+          } else {
+            // Imagen inválida, generar sólida
+            imageUrl = await imageGenerator.generateNumberedImage(i)
+            logger.warn(`Imagen inválida, usando sólida para tweet ${i + 1}`, {
+              context: 'ImageManager',
+            })
+          }
         } else {
-          // Generar imagen sólida con número
-          imageUrl = await ImageGenerator.generateNumberedImage(i)
+          // No hay imágenes, generar sólida
+          imageUrl = await imageGenerator.generateNumberedImage(i)
           logger.debug(`Imagen sólida generada para tweet ${i + 1}`, {
             context: 'ImageManager',
           })
@@ -54,17 +73,19 @@ export const useImageManager = () => {
       }
     }
 
+    const successfulImages = distributedImages.filter((img) => img && img !== '')
     logger.success('Imágenes distribuidas exitosamente', {
       context: 'ImageManager',
-      data: { distributed: distributedImages.filter((img) => img).length },
+      data: {
+        distributed: successfulImages.length,
+        total: distributedImages.length,
+        successRate: Math.round((successfulImages.length / distributedImages.length) * 100),
+      },
     })
 
     return distributedImages
   }
 
-  /**
-   * Maneja errores de carga de imágenes para un tweet específico
-   */
   const handleTweetImageError = async (
     tweet: ThreadTweet,
     index: number,
@@ -72,7 +93,7 @@ export const useImageManager = () => {
   ): Promise<ThreadTweet[]> => {
     logger.warn(`Error cargando imagen para tweet ${index + 1}`, {
       context: 'ImageManager',
-      data: { imageUrl: tweet.imageUrl },
+      data: { imageUrl: tweet.imageUrl ? tweet.imageUrl.substring(0, 50) + '...' : 'none' },
     })
 
     try {
@@ -80,13 +101,13 @@ export const useImageManager = () => {
 
       if (tweet.imageUrl && !tweet.imageUrl.startsWith('data:image/')) {
         // Intentar regenerar con la misma imagen de base
-        newImageUrl = await ImageGenerator.generateNumberedImage(index, tweet.imageUrl)
+        newImageUrl = await imageGenerator.generateNumberedImage(index, tweet.imageUrl)
         logger.info(`Imagen regenerada para tweet ${index + 1}`, {
           context: 'ImageManager',
         })
       } else {
         // Generar nueva imagen sólida
-        newImageUrl = await ImageGenerator.generateNumberedImage(index)
+        newImageUrl = await imageGenerator.generateNumberedImage(index)
         logger.info(`Imagen de fallback generada para tweet ${index + 1}`, {
           context: 'ImageManager',
         })
@@ -116,9 +137,6 @@ export const useImageManager = () => {
     }
   }
 
-  /**
-   * Actualiza todas las imágenes de un conjunto de tweets
-   */
   const refreshAllTweetImages = async (tweets: ThreadTweet[]): Promise<ThreadTweet[]> => {
     logger.info('Actualizando todas las imágenes de tweets', {
       context: 'ImageManager',
@@ -132,12 +150,12 @@ export const useImageManager = () => {
         const currentImageUrl = updatedTweets[i].imageUrl
         let newImageUrl = ''
 
-        if (currentImageUrl && ImageGenerator.isValidImageUrl(currentImageUrl)) {
+        if (currentImageUrl && isValidImageUrl(currentImageUrl)) {
           // Regenerar manteniendo la imagen base
-          newImageUrl = await ImageGenerator.generateNumberedImage(i, currentImageUrl)
+          newImageUrl = await imageGenerator.generateNumberedImage(i, currentImageUrl)
         } else {
           // Generar nueva imagen sólida
-          newImageUrl = await ImageGenerator.generateNumberedImage(i)
+          newImageUrl = await imageGenerator.generateNumberedImage(i)
         }
 
         updatedTweets[i] = {
@@ -156,16 +174,21 @@ export const useImageManager = () => {
     return updatedTweets
   }
 
-  /**
-   * Extrae y valida imágenes de contenido scrapeado
-   */
   const extractValidImages = (images: string[]): string[] => {
-    return images.filter((img) => ImageGenerator.isValidImageUrl(img)).slice(0, 10) // Límite de 10 imágenes
+    const validImages = images.filter((img) => isValidImageUrl(img)).slice(0, 10) // Límite de 10 imágenes
+
+    logger.debug('Imágenes validadas extraídas', {
+      context: 'ImageManager',
+      data: {
+        originalCount: images.length,
+        validCount: validImages.length,
+        sample: validImages.slice(0, 3).map((img) => img.substring(0, 30) + '...'),
+      },
+    })
+
+    return validImages
   }
 
-  /**
-   * Obtiene estadísticas de imágenes en tweets
-   */
   const getImageStats = (tweets: ThreadTweet[]) => {
     const tweetsWithImages = tweets.filter((t) => t.imageUrl && t.imageUrl !== '')
     const uniqueImageUrls = new Set(tweetsWithImages.map((t) => t.imageUrl))
@@ -178,11 +201,48 @@ export const useImageManager = () => {
     }
   }
 
+  const testImageAccessibility = async (url: string): Promise<boolean> => {
+    if (!isValidImageUrl(url)) return false
+
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+
+      img.onload = () => resolve(true)
+      img.onerror = () => resolve(false)
+
+      // Timeout después de 5 segundos
+      const timeout = setTimeout(() => resolve(false), 5000)
+
+      img.onload = () => {
+        clearTimeout(timeout)
+        resolve(true)
+      }
+
+      img.onerror = () => {
+        clearTimeout(timeout)
+        resolve(false)
+      }
+
+      img.src = url
+    })
+  }
+
   return {
+    // Métodos principales
     distributeImagesToTweets,
     handleTweetImageError,
     refreshAllTweetImages,
     extractValidImages,
     getImageStats,
+    testImageAccessibility,
+
+    // Utilidades
+    isValidImageUrl,
+
+    // Información de estado
+    hasImages: (tweets: ThreadTweet[]) => tweets.some((t) => t.imageUrl && t.imageUrl !== ''),
+    imageCount: (tweets: ThreadTweet[]) =>
+      tweets.filter((t) => t.imageUrl && t.imageUrl !== '').length,
   }
 }

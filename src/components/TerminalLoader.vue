@@ -71,7 +71,7 @@
       leave-from-class="opacity-100 max-h-96"
       leave-to-class="opacity-0 max-h-0"
     >
-      <div v-if="shouldShowContent" class="terminal-content-wrapper" ref="contentWrapper">
+      <div v-if="isExpanded" class="terminal-content-wrapper" ref="contentWrapper">
         <div
           class="terminal-content bg-surfaceContainerHighest"
           :style="terminalStyle"
@@ -109,23 +109,18 @@ import { logger, type LogEntry, LogLevel } from '@/utils/logger'
 
 interface Props {
   isLoading?: boolean
-  autoCollapse?: boolean
-  collapseDelay?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
-  autoCollapse: true,
-  collapseDelay: 5000, // 5 segundos por defecto
 })
 
 const logs = ref<LogEntry[]>([])
 const startTime = ref<number>(Date.now())
 const currentTime = ref<string>('')
-const isExpanded = ref(false)
+const isExpanded = ref(true) // ← Siempre expandido por defecto
 const hasUnreadLogs = ref(false)
 const lastLogTimestamp = ref<number>(0)
-const collapseTimeout = ref<number | null>(null)
 const contentWrapper = ref<HTMLElement | null>(null)
 const contentElement = ref<HTMLElement | null>(null)
 
@@ -143,8 +138,8 @@ const statusMessage = computed(() => {
   return `${lastLog.context}: ${lastLog.message}`
 })
 
-const shouldShowContent = computed(() => {
-  return isExpanded.value && logs.value.length > 0
+const visibleLogs = computed(() => {
+  return logs.value
 })
 
 const stats = computed(() => {
@@ -206,7 +201,6 @@ const toggleExpanded = () => {
   isExpanded.value = !isExpanded.value
   if (isExpanded.value) {
     hasUnreadLogs.value = false
-    resetCollapseTimeout()
     scrollToBottom()
   }
 }
@@ -221,44 +215,32 @@ const clearLogs = () => {
 const scrollToBottom = () => {
   nextTick(() => {
     if (contentElement.value) {
-      contentElement.value.scrollTop = contentElement.value.scrollHeight
+      // Scroll suave al final
+      contentElement.value.scrollTo({
+        top: contentElement.value.scrollHeight,
+        behavior: 'smooth',
+      })
     }
   })
-}
-
-const resetCollapseTimeout = () => {
-  if (collapseTimeout.value) {
-    clearTimeout(collapseTimeout.value)
-    collapseTimeout.value = null
-  }
-
-  if (props.autoCollapse && isExpanded.value) {
-    collapseTimeout.value = window.setTimeout(() => {
-      isExpanded.value = false
-      collapseTimeout.value = null
-    }, props.collapseDelay)
-  }
 }
 
 const handleNewLog = (logEntry: LogEntry) => {
   logs.value.push(logEntry)
   lastLogTimestamp.value = Date.now()
 
-  // Auto-expand cuando hay nuevos logs
+  // Siempre mantener expandido cuando hay nuevos logs
   if (!isExpanded.value) {
     isExpanded.value = true
     hasUnreadLogs.value = false
   }
 
-  // Mantener un límite de logs
-  if (logs.value.length > 200) {
-    logs.value = logs.value.slice(-200)
+  // Mantener máximo 500 líneas en el log
+  if (logs.value.length > 500) {
+    logs.value = logs.value.slice(-500)
   }
 
-  // Scroll al fondo cuando se agregan nuevos logs
+  // Scroll automático al fondo cuando llegan nuevos logs
   scrollToBottom()
-
-  resetCollapseTimeout()
 }
 
 let removeListener: (() => void) | null = null
@@ -280,6 +262,9 @@ onMounted(() => {
   removeListener = logger.addListener(handleNewLog)
 
   logger.info('Fixed terminal initialized', { context: 'Terminal' })
+
+  // Scroll inicial al fondo
+  scrollToBottom()
 })
 
 onUnmounted(() => {
@@ -289,21 +274,17 @@ onUnmounted(() => {
   if (removeListener) {
     removeListener()
   }
-  if (collapseTimeout.value) {
-    clearTimeout(collapseTimeout.value)
-  }
 })
 
-// Watch for expansion changes to manage timeout and scroll
+// Scroll al fondo cuando se expande
 watch(isExpanded, (newValue) => {
   if (newValue) {
     hasUnreadLogs.value = false
-    resetCollapseTimeout()
     scrollToBottom()
   }
 })
 
-// Watch for logs changes to auto-scroll
+// Scroll automático cuando se agregan nuevos logs
 watch(logs, () => {
   if (isExpanded.value) {
     scrollToBottom()
