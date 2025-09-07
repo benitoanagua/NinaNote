@@ -160,14 +160,26 @@ export const useImageManager = () => {
     index: number,
     allTweets: ThreadTweet[],
   ): Promise<ThreadTweet[]> => {
-    logger.warn(`Error cargando imagen para tweet ${index + 1}`, {
+    logger.warn(`Error loading image for tweet ${index + 1}`, {
       context: 'ImageManager',
-      data: { imageUrl: tweet.imageUrl ? tweet.imageUrl.substring(0, 50) + '...' : 'none' },
+      data: {
+        imageUrl: tweet.imageUrl,
+        tweetIndex: index,
+        hasImage: !!tweet.imageUrl,
+      },
     })
 
     try {
-      // Siempre generar imagen sólida como fallback
-      const newImageUrl = await imageGenerator.generateNumberedImage(index)
+      let newImageUrl = ''
+
+      // Lógica mejorada para regeneración
+      if (index === 0) {
+        // Para el primer tweet, intentar regenerar con la misma imagen base
+        newImageUrl = await imageGenerator.generateNumberedImage(index, tweet.imageUrl || '')
+      } else {
+        // Para tweets posteriores, usar imagen sólida
+        newImageUrl = await imageGenerator.generateNumberedImage(index)
+      }
 
       const updatedTweets = [...allTweets]
       updatedTweets[index] = {
@@ -175,18 +187,19 @@ export const useImageManager = () => {
         imageUrl: newImageUrl,
       }
 
-      logger.info(`Imagen de fallback generada para tweet ${index + 1}`, {
+      logger.info(`Fallback image generated for tweet ${index + 1}`, {
         context: 'ImageManager',
+        data: { tweetIndex: index, fallbackType: index === 0 ? 'with-base' : 'solid' },
       })
 
       return updatedTweets
     } catch (error) {
-      logger.error(`Error manejando fallo de imagen para tweet ${index + 1}`, {
+      logger.error(`Error handling image failure for tweet ${index + 1}`, {
         context: 'ImageManager',
         data: error,
       })
 
-      // Fallback: eliminar la imagen problemática
+      // Fallback final: eliminar la imagen problemática
       const updatedTweets = [...allTweets]
       updatedTweets[index] = {
         ...updatedTweets[index],

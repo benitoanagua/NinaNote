@@ -44,7 +44,7 @@ export class ImageGenerator {
     height: number,
   ): Promise<void> {
     try {
-      // 1. PRIMERA CAPA: Imagen base
+      // 1. PRIMERA CAPA: Imagen base con proxy para evitar CORS
       const imageUrl = await this.proxy.getProxiedUrl(baseImageUrl)
       const image = await this.loadImage(imageUrl)
 
@@ -58,22 +58,18 @@ export class ImageGenerator {
       ctx.drawImage(image, x, y, scaledWidth, scaledHeight)
 
       // 2. SEGUNDA CAPA: Color sólido con transparencia (50%)
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)' // 50% de opacidad
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
       ctx.fillRect(0, 0, width, height)
 
       // 3. TERCERA CAPA: Número centrado
       this.drawNumber(ctx, index, width, height)
-
-      logger.debug('Image with 3 layers generated successfully', {
-        context: 'ImageGenerator',
-        data: { index, baseImageUrl: baseImageUrl.substring(0, 50) + '...' },
-      })
     } catch (error) {
       logger.warn('Failed to draw image with layers, using solid background', {
         context: 'ImageGenerator',
-        data: error,
+        data: { error, baseImageUrl, index },
       })
-      // Fallback a fondo sólido
+
+      // Fallback robusto: fondo sólido + número
       this.drawSolidBackground(ctx, index, width, height)
       this.drawNumber(ctx, index, width, height)
     }
@@ -123,36 +119,40 @@ export class ImageGenerator {
       const img = new Image()
       img.crossOrigin = 'anonymous'
 
-      img.onload = () => {
-        if (img.width > 0 && img.height > 0) {
+      let isResolved = false
+
+      const onLoad = () => {
+        if (!isResolved && img.width > 0 && img.height > 0) {
+          isResolved = true
+          clearTimeout(timeout)
           resolve(img)
-        } else {
-          reject(new Error('Image loaded but has zero dimensions'))
         }
       }
 
-      img.onerror = () => {
-        reject(new Error('Failed to load image'))
+      const onError = () => {
+        if (!isResolved) {
+          isResolved = true
+          clearTimeout(timeout)
+          reject(new Error('Failed to load image'))
+        }
       }
 
-      // Timeout
+      img.onload = onLoad
+      img.onerror = onError
+
+      // Timeout más corto para imágenes que fallan por CORS
       const timeout = setTimeout(() => {
-        reject(new Error('Image loading timeout'))
-      }, 10000)
-
-      img.onload = () => {
-        clearTimeout(timeout)
-        if (img.width > 0 && img.height > 0) {
-          resolve(img)
+        if (!isResolved) {
+          isResolved = true
+          reject(new Error('Image loading timeout'))
         }
-      }
+      }, 5000) // 5 segundos en lugar de 10
 
       img.src = url
 
-      // Si ya está cargada
+      // Si ya está cargada (caché)
       if (img.complete && img.width > 0 && img.height > 0) {
-        clearTimeout(timeout)
-        resolve(img)
+        onLoad()
       }
     })
   }
