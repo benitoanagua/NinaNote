@@ -5,37 +5,47 @@ interface TerminalOptions {
   maxVisibleLogs?: number
   maxTotalLogs?: number
   autoExpand?: boolean
+  scrollStep?: number
 }
 
 export function useTerminal(options: TerminalOptions = {}) {
-  const { maxVisibleLogs = 15, maxTotalLogs = 60, autoExpand = true } = options
+  // Configuración con valores por defecto
+  const { maxVisibleLogs = 50, maxTotalLogs = 200, autoExpand = true, scrollStep = 100 } = options
 
-  // Estado reactivo
   const allLogs = ref<(LogEntry & { id: number })[]>([])
   const startTime = ref<number>(Date.now())
   const currentTime = ref<string>('')
-  const isExpanded = ref(true)
+  const isExpanded = ref(autoExpand)
   const hasUnreadLogs = ref(false)
   const lastLogTimestamp = ref<number>(0)
   const logIdCounter = ref(0)
+  const userHasScrolled = ref(false)
+  const scrollPosition = ref(0)
+  const showNeofetch = ref(true)
+  const maxHistoryLines = ref(1000)
+  const historyOffset = ref(0)
 
   // Referencias DOM
-  const contentWrapper = ref<HTMLElement | null>(null)
   const contentElement = ref<HTMLElement | null>(null)
 
   // Variables internas
   let removeListener: (() => void) | null = null
   let timeInterval: number | null = null
 
-  // Computadas
   const totalLogs = computed(() => allLogs.value.length)
 
   const visibleLogs = computed(() => {
-    const logs = allLogs.value
-    if (logs.length <= maxVisibleLogs) {
-      return logs
+    if (allLogs.value.length === 0) return []
+
+    // Modo histórico (usuario ha hecho scroll)
+    if (userHasScrolled.value && historyOffset.value > 0) {
+      const start = Math.max(0, allLogs.value.length - maxHistoryLines.value - historyOffset.value)
+      const end = Math.min(allLogs.value.length, start + maxVisibleLogs)
+      return allLogs.value.slice(start, end)
     }
-    return logs.slice(-maxVisibleLogs)
+
+    // Modo normal: últimos logs
+    return allLogs.value.slice(-maxVisibleLogs)
   })
 
   const statusMessage = computed(() => {
@@ -69,7 +79,6 @@ export function useTerminal(options: TerminalOptions = {}) {
     lineHeight: '1.25',
   }))
 
-  // Métodos de utilidad
   const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString('en-US', {
       hour12: false,
@@ -99,7 +108,7 @@ export function useTerminal(options: TerminalOptions = {}) {
   }
 
   const getLogClass = (log: LogEntry) => {
-    const baseClasses = 'text-sm truncate'
+    const baseClasses = 'text-sm'
     const levelClasses = {
       [LogLevel.INFO]: 'text-onSurfaceVariant',
       [LogLevel.SUCCESS]: 'text-primary font-medium',
@@ -110,7 +119,6 @@ export function useTerminal(options: TerminalOptions = {}) {
     return `${baseClasses} ${levelClasses[log.level] || 'text-onSurfaceVariant'}`
   }
 
-  // Métodos de scroll
   const scrollToBottom = () => {
     nextTick(() => {
       if (contentElement.value) {
@@ -118,22 +126,94 @@ export function useTerminal(options: TerminalOptions = {}) {
           top: contentElement.value.scrollHeight,
           behavior: 'smooth',
         })
+        userHasScrolled.value = false
+        scrollPosition.value = contentElement.value.scrollHeight
       }
     })
   }
 
-  const shouldAutoScroll = () => {
-    const element = contentElement.value
-    if (!element) return true
-    return element.scrollHeight - element.scrollTop - element.clientHeight < 50
+  const scrollUp = () => {
+    if (contentElement.value) {
+      contentElement.value.scrollBy({
+        top: -scrollStep,
+        behavior: 'smooth',
+      })
+      userHasScrolled.value = true
+      updateScrollPosition()
+    }
   }
 
-  // Métodos de control
+  const scrollDown = () => {
+    if (contentElement.value) {
+      contentElement.value.scrollBy({
+        top: scrollStep,
+        behavior: 'smooth',
+      })
+      updateScrollPosition()
+      checkIfAtBottom()
+    }
+  }
+
+  const scrollToTop = () => {
+    if (contentElement.value) {
+      contentElement.value.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      })
+      userHasScrolled.value = true
+      scrollPosition.value = 0
+    }
+  }
+
+  const scrollToHistory = (lines: number) => {
+    historyOffset.value = Math.max(0, Math.min(allLogs.value.length - maxVisibleLogs, lines))
+    userHasScrolled.value = historyOffset.value > 0
+
+    if (contentElement.value) {
+      contentElement.value.scrollTop = 0 // Ir al inicio del viewport histórico
+    }
+  }
+
+  const scrollToRecent = () => {
+    historyOffset.value = 0
+    userHasScrolled.value = false
+    scrollToBottom()
+  }
+
+  const updateScrollPosition = () => {
+    if (contentElement.value) {
+      scrollPosition.value = contentElement.value.scrollTop
+    }
+  }
+
+  const checkIfAtBottom = () => {
+    if (contentElement.value) {
+      const { scrollTop, scrollHeight, clientHeight } = contentElement.value
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50
+      userHasScrolled.value = !isAtBottom
+    }
+  }
+
+  const handleScroll = (event: Event) => {
+    if (!contentElement.value) return
+
+    const { scrollTop, scrollHeight, clientHeight } = contentElement.value
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50
+
+    userHasScrolled.value = !isAtBottom
+    scrollPosition.value = scrollTop
+
+    // Si el usuario hace scroll manual, entrar en modo histórico
+    if (userHasScrolled.value && historyOffset.value === 0) {
+      historyOffset.value = Math.max(0, allLogs.value.length - maxVisibleLogs)
+    }
+  }
+
   const toggleExpanded = () => {
     isExpanded.value = !isExpanded.value
     if (isExpanded.value) {
       hasUnreadLogs.value = false
-      scrollToBottom()
+      nextTick(() => scrollToBottom())
     }
   }
 
@@ -142,43 +222,37 @@ export function useTerminal(options: TerminalOptions = {}) {
     logIdCounter.value = 0
     startTime.value = Date.now()
     hasUnreadLogs.value = false
+    showNeofetch.value = true
     logger.info('Terminal buffer cleared', { context: 'Terminal' })
   }
 
-  const expand = () => {
-    if (!isExpanded.value) {
-      isExpanded.value = true
-      hasUnreadLogs.value = false
-      scrollToBottom()
-    }
+  const hideNeofetch = () => {
+    showNeofetch.value = false
   }
 
-  const collapse = () => {
-    isExpanded.value = false
+  const showNeofetchBanner = () => {
+    showNeofetch.value = true
   }
 
-  // Manejo de logs
   const handleNewLog = (logEntry: LogEntry) => {
     const logWithId = { ...logEntry, id: logIdCounter.value++ }
 
     allLogs.value.push(logWithId)
     lastLogTimestamp.value = Date.now()
 
+    // Si hay nuevos logs, resetear la navegación histórica
+    if (userHasScrolled.value) {
+      historyOffset.value = 0
+      userHasScrolled.value = false
+    }
+
     // Mantener buffer total controlado
     if (allLogs.value.length > maxTotalLogs) {
       allLogs.value = allLogs.value.slice(-maxTotalLogs)
     }
 
-    // Auto-expandir si está configurado
-    if (autoExpand && !isExpanded.value) {
-      isExpanded.value = true
-      hasUnreadLogs.value = false
-    } else if (!isExpanded.value) {
-      hasUnreadLogs.value = true
-    }
-
     // Auto-scroll inteligente
-    if (isExpanded.value && shouldAutoScroll()) {
+    if (isExpanded.value && !userHasScrolled.value) {
       scrollToBottom()
     }
   }
@@ -199,53 +273,6 @@ export function useTerminal(options: TerminalOptions = {}) {
     handleNewLog(logEntry)
   }
 
-  // Tiempo actual
-  const updateTime = () => {
-    currentTime.value = new Date().toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
-  }
-
-  // Lifecycle
-  const initialize = () => {
-    updateTime()
-    timeInterval = window.setInterval(updateTime, 1000)
-    removeListener = logger.addListener(handleNewLog)
-
-    logger.info('Terminal initialized with buffer limit', {
-      context: 'Terminal',
-      data: {
-        maxVisible: maxVisibleLogs,
-        maxTotal: maxTotalLogs,
-        autoExpand,
-      },
-    })
-
-    scrollToBottom()
-  }
-
-  const cleanup = () => {
-    if (timeInterval) {
-      clearInterval(timeInterval)
-    }
-    if (removeListener) {
-      removeListener()
-    }
-  }
-
-  // Auto-inicializar en mount
-  onMounted(() => {
-    initialize()
-  })
-
-  onUnmounted(() => {
-    cleanup()
-  })
-
-  // Métodos públicos avanzados
   const getLogs = (count?: number) => {
     if (count) {
       return allLogs.value.slice(-count)
@@ -269,12 +296,60 @@ export function useTerminal(options: TerminalOptions = {}) {
     return allLogs.value
       .map(
         (log) =>
-          `[${formatTime(log.timestamp)}] ${log.context}: ${log.message}${log.data ? ` - ${formatData(log.data)}` : ''}`,
+          `[${formatTime(log.timestamp)}] ${log.context}: ${log.message}${
+            log.data ? ` - ${formatData(log.data)}` : ''
+          }`,
       )
       .join('\n')
   }
 
-  // Retornar API del composable
+  const updateTime = () => {
+    currentTime.value = new Date().toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  }
+
+  const initialize = () => {
+    updateTime()
+    timeInterval = window.setInterval(updateTime, 1000)
+    removeListener = logger.addListener(handleNewLog)
+
+    logger.info('Terminal initialized with enhanced features', {
+      context: 'Terminal',
+      data: {
+        maxVisible: maxVisibleLogs,
+        maxTotal: maxTotalLogs,
+        scrollStep,
+        autoExpand,
+      },
+    })
+
+    // Agregar logs iniciales
+    addLog('Terminal system ready', LogLevel.INFO, 'System')
+    addLog('Type "help" for available commands', LogLevel.INFO, 'System')
+  }
+
+  const cleanup = () => {
+    if (timeInterval) {
+      clearInterval(timeInterval)
+    }
+    if (removeListener) {
+      removeListener()
+    }
+  }
+
+  // Auto-inicializar en mount
+  onMounted(() => {
+    initialize()
+  })
+
+  onUnmounted(() => {
+    cleanup()
+  })
+
   return {
     // Estado reactivo
     allLogs: readonly(allLogs),
@@ -286,9 +361,12 @@ export function useTerminal(options: TerminalOptions = {}) {
     statusMessage,
     stats,
     terminalStyle,
+    showNeofetch,
+    userHasScrolled,
+    scrollPosition,
+    historyOffset,
 
     // Referencias DOM
-    contentWrapper,
     contentElement,
 
     // Métodos de utilidad
@@ -298,10 +376,16 @@ export function useTerminal(options: TerminalOptions = {}) {
 
     // Métodos de control
     toggleExpanded,
-    expand,
-    collapse,
-    clearLogs,
     scrollToBottom,
+    scrollUp,
+    scrollDown,
+    scrollToTop,
+    scrollToHistory,
+    scrollToRecent,
+    clearLogs,
+    hideNeofetch,
+    showNeofetchBanner,
+    handleScroll,
 
     // Métodos de logs
     addLog,

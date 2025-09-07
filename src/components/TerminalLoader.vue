@@ -13,9 +13,20 @@
           </div>
 
           <div class="min-w-0 flex-1 ml-2">
-            <p class="text-sm font-medium text-onSurface truncate" :title="statusMessage">
+            <!-- Mostrar créditos cuando está colapsado -->
+            <p
+              v-if="!isExpanded"
+              class="text-sm font-medium text-onSurface truncate"
+              title="Contacto: Benito Anagua • benito.anagua@gmail.com • +591 72945548"
+            >
+              Benito Anagua • benito.anagua@gmail.com • +591 72945548
+            </p>
+
+            <!-- Mostrar estado normal cuando está expandido -->
+            <p v-else class="text-sm font-medium text-onSurface truncate" :title="statusMessage">
               {{ statusMessage }}
             </p>
+
             <p class="text-xs text-onSurfaceVariant/60">
               {{ stats.timeElapsed }}s • {{ totalLogs }} total • {{ visibleLogs.length }} visible
               <span :class="hasUnreadLogs ? 'text-primary' : 'text-onSurfaceVariant/60'">
@@ -71,7 +82,7 @@
       leave-from-class="opacity-100 max-h-80"
       leave-to-class="opacity-0 max-h-0"
     >
-      <div v-if="isExpanded" class="terminal-content-wrapper" ref="contentWrapper">
+      <div v-if="isExpanded" class="terminal-content-wrapper">
         <div
           class="terminal-content bg-surfaceContainerHighest"
           :style="terminalStyle"
@@ -159,7 +170,6 @@ const {
   terminalStyle,
 
   // Referencias DOM
-  contentWrapper,
   contentElement,
 
   // Métodos de utilidad
