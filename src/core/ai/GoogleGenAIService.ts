@@ -3,12 +3,10 @@ import type { AIModel, ThreadTweet } from '../types'
 import { BaseService } from '../base/BaseService'
 import { PROMPT_TEMPLATES, PromptEngine } from './PromptTemplate'
 import { logger, ErrorFactory } from '@/utils/logger'
-import { useImageManager } from '@/composables/useImageManager'
-import { imageGenerator } from '../utils/imageGenerator' // ← Cambiado a la instancia
+import { imageDistributor } from '../utils/imageDistributor'
 
 export class GoogleGenAIService extends BaseService {
   private ai: GoogleGenAI
-  private imageManager = useImageManager()
 
   constructor(apiKey: string) {
     super('GoogleGenAI Service')
@@ -71,16 +69,8 @@ export class GoogleGenAIService extends BaseService {
     })
 
     try {
-      const textLength = text.length
-      let tweetCount = 4
-
-      if (textLength < 800) {
-        tweetCount = 3
-      } else if (textLength > 2000) {
-        tweetCount = 5
-      }
-
-      logger.info(`Calculated tweet count: ${tweetCount} for text length: ${textLength}`, {
+      const tweetCount = this.calculateTweetCount(text.length)
+      logger.info(`Calculated tweet count: ${tweetCount} for text length: ${text.length}`, {
         context: 'AI',
       })
 
@@ -101,7 +91,6 @@ export class GoogleGenAIService extends BaseService {
       })
 
       const raw = response.text ?? ''
-
       logger.debug('Received response from Gemini API', {
         context: 'AI',
         data: { responseLength: raw.length },
@@ -117,19 +106,23 @@ export class GoogleGenAIService extends BaseService {
         context: 'AI',
       })
 
-      const distributedImages = await this.distributeImages(images, tweetContents.length)
+      // Usar el ImageDistributor refactorizado
+      const distributedImages = await imageDistributor.distributeImages(
+        images,
+        tweetContents.length,
+      )
 
-      logger.debug('Distributed images to tweets', {
+      const stats = imageDistributor.getDistributionStats(images.length, tweetContents.length)
+      logger.debug('Images distributed to tweets', {
         context: 'AI',
-        data: { imageCount: distributedImages.filter((img) => img).length },
+        data: {
+          imageCount: distributedImages.filter((img: string) => img && img.length > 0).length,
+          tweetCount: tweetContents.length,
+          distributionCase: stats.description,
+        },
       })
 
-      const tweets = tweetContents.map((content, i) => ({
-        id: `tweet-${Date.now()}-${i}`,
-        content,
-        charCount: content.length,
-        imageUrl: distributedImages[i],
-      }))
+      const tweets = this.createThreadTweets(tweetContents, distributedImages)
 
       this.logSuccess(`Generated ${tweets.length} tweets`)
       logger.ai.success(tweets.length)
@@ -142,47 +135,6 @@ export class GoogleGenAIService extends BaseService {
         'Failed to generate Twitter thread',
         error instanceof Error ? error : undefined,
       )
-    }
-  }
-
-  private async distributeImages(availableImages: string[], tweetCount: number): Promise<string[]> {
-    logger.info(`Distributing ${availableImages.length} images to ${tweetCount} tweets`, {
-      context: 'AI',
-    })
-
-    try {
-      const validImages = this.imageManager.extractValidImages(availableImages)
-      const distributedImages = await this.imageManager.distributeImagesToTweets(
-        validImages,
-        tweetCount,
-      )
-
-      logger.debug('Images distributed to tweets', {
-        context: 'AI',
-        data: {
-          imageCount: distributedImages.filter((img) => img).length,
-          tweetCount,
-        },
-      })
-
-      return distributedImages
-    } catch (error) {
-      logger.error('Error distributing images to tweets', {
-        context: 'AI',
-        data: error,
-      })
-
-      // Fallback: generar imágenes sólidas para todos los tweets
-      const fallbackImages: string[] = []
-      for (let i = 0; i < tweetCount; i++) {
-        try {
-          const image = await imageGenerator.generateNumberedImage(i)
-          fallbackImages.push(image)
-        } catch {
-          fallbackImages.push('')
-        }
-      }
-      return fallbackImages
     }
   }
 
@@ -229,6 +181,12 @@ export class GoogleGenAIService extends BaseService {
     }
   }
 
+  private calculateTweetCount(textLength: number): number {
+    if (textLength < 800) return 3
+    if (textLength > 2000) return 5
+    return 4
+  }
+
   private parseTweets(rawContent: string): string[] {
     return rawContent
       .split('\n')
@@ -236,6 +194,15 @@ export class GoogleGenAIService extends BaseService {
       .filter((l) => l.length > 0 && !l.startsWith('//') && !l.startsWith('/*'))
       .map((l) => l.replace(/^\d+[\.\)]\s*/, '')) // Remove numbering like "1.", "2)", etc.
       .filter((l) => l.length > 0)
+  }
+
+  private createThreadTweets(contents: string[], images: string[]): ThreadTweet[] {
+    return contents.map((content, index) => ({
+      id: `tweet-${Date.now()}-${index}`,
+      content,
+      charCount: content.length,
+      imageUrl: images[index],
+    }))
   }
 }
 

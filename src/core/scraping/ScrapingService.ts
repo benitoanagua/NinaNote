@@ -20,6 +20,18 @@ export class ScrapingService extends BaseService {
 
       this.logSuccess(`Scraped ${content.content.length} characters`)
       logger.scraping.success(content.content.length)
+
+      // Log detallado de imágenes encontradas
+      logger.debug('Resumen de imágenes encontradas', {
+        context: 'ScrapingService',
+        data: {
+          totalImages: content.images?.length || 0,
+          mainImage: content.image || 'none',
+          imageSample: content.images?.slice(0, 3) || [],
+          hasImages: (content.images?.length || 0) > 0,
+        },
+      })
+
       return content
     } catch (error) {
       this.logError('Failed to scrape content', error)
@@ -48,6 +60,18 @@ export class ScrapingService extends BaseService {
       // Extraer y filtrar imágenes relevantes
       const allImages = this.extractAllImages(doc, url)
       const contentImages = this.filterContentImages(allImages, url)
+
+      // Log detallado del proceso de extracción
+      logger.debug('Proceso de extracción de imágenes', {
+        context: 'ScrapingService',
+        data: {
+          url,
+          allImagesCount: allImages.length,
+          contentImagesCount: contentImages.length,
+          filteredOut: allImages.length - contentImages.length,
+          contentImagesSample: contentImages.slice(0, 3),
+        },
+      })
 
       return contentImages
     } catch (error) {
@@ -166,7 +190,12 @@ export class ScrapingService extends BaseService {
     if (ogImage && ogImage.getAttribute('content')) {
       const imageUrl = ogImage.getAttribute('content')!
       if (this.isValidImageUrl(imageUrl)) {
-        images.push(this.ensureAbsoluteUrl(imageUrl, sourceUrl))
+        const absoluteUrl = this.ensureAbsoluteUrl(imageUrl, sourceUrl)
+        images.push(absoluteUrl)
+        logger.debug('Imagen OG agregada', {
+          context: 'ScrapingService',
+          data: { imageUrl: absoluteUrl },
+        })
       }
     }
 
@@ -175,16 +204,61 @@ export class ScrapingService extends BaseService {
     if (twitterImage && twitterImage.getAttribute('content')) {
       const imageUrl = twitterImage.getAttribute('content')!
       if (this.isValidImageUrl(imageUrl)) {
-        images.push(this.ensureAbsoluteUrl(imageUrl, sourceUrl))
+        const absoluteUrl = this.ensureAbsoluteUrl(imageUrl, sourceUrl)
+        images.push(absoluteUrl)
+        logger.debug('Imagen Twitter agregada', {
+          context: 'ScrapingService',
+          data: { imageUrl: absoluteUrl },
+        })
       }
     }
 
-    // 3. Extraer imágenes del contenido principal
-    const contentImages = Array.from(doc.querySelectorAll('img'))
-      .map((img) => this.ensureAbsoluteUrl(img.src, sourceUrl))
-      .filter((src) => this.isValidImageUrl(src))
+    // 3. Extraer imágenes del contenido principal - SELECTORES MEJORADOS
+    const contentSelectors = [
+      '.entry-content img',
+      '.herald-entry-content img',
+      '.wp-block-image img',
+      '.herald-post-thumbnail img',
+      '.article-content img',
+      '.post-content img',
+      '.content img',
+      'figure img',
+      'main img',
+    ]
+
+    let contentImages: string[] = []
+
+    for (const selector of contentSelectors) {
+      const elements = doc.querySelectorAll(selector)
+      if (elements.length > 0) {
+        const selectorImages = Array.from(elements)
+          .map((element) => {
+            const img = element as HTMLImageElement
+            return this.ensureAbsoluteUrl(img.src, sourceUrl)
+          })
+          .filter((src) => this.isValidImageUrl(src))
+
+        contentImages = [...contentImages, ...selectorImages]
+      }
+    }
 
     images.push(...contentImages)
+
+    // Log detallado de la extracción
+    logger.debug('Extracción de imágenes completada', {
+      context: 'ScrapingService',
+      data: {
+        ogImage: ogImage
+          ? this.ensureAbsoluteUrl(ogImage.getAttribute('content')!, sourceUrl)
+          : 'none',
+        twitterImage: twitterImage
+          ? this.ensureAbsoluteUrl(twitterImage.getAttribute('content')!, sourceUrl)
+          : 'none',
+        contentImagesCount: contentImages.length,
+        contentImagesSample: contentImages.slice(0, 3),
+        totalImages: images.length,
+      },
+    })
 
     return Array.from(new Set(images)) // Eliminar duplicados
   }
@@ -216,7 +290,13 @@ export class ScrapingService extends BaseService {
       // Excluir imágenes comunes de publicidad/header
       const lowerUrl = imageUrl.toLowerCase()
 
-      // Patrones comunes de imágenes no deseadas
+      // DEBUG: Log cada imagen que se evalúa
+      logger.debug('Evaluando imagen para filtrado', {
+        context: 'ScrapingService',
+        data: { imageUrl, lowerUrl },
+      })
+
+      // Patrones comunes de imágenes no deseadas (AJUSTADOS)
       const unwantedPatterns = [
         'logo',
         'header',
@@ -225,7 +305,8 @@ export class ScrapingService extends BaseService {
         'ad',
         'ads',
         'advertisement',
-        'social',
+        'social-share',
+        'social-media',
         'icon',
         'avatar',
         'sponsor',
@@ -238,15 +319,25 @@ export class ScrapingService extends BaseService {
         'placeholder',
         'pixel',
         'tracking',
-        'facebook',
-        'twitter',
-        'instagram',
-        'whatsapp',
-        'linkedin',
+        // 'facebook',
+        // 'twitter',
+        // 'instagram',
+        // 'whatsapp',
+        // 'linkedin',
+        'favicon',
       ]
 
       // Excluir URLs que contengan estos patrones
-      const hasUnwantedPattern = unwantedPatterns.some((pattern) => lowerUrl.includes(pattern))
+      const hasUnwantedPattern = unwantedPatterns.some((pattern) => {
+        const hasPattern = lowerUrl.includes(pattern)
+        if (hasPattern) {
+          logger.debug('Imagen excluida por patrón no deseado', {
+            context: 'ScrapingService',
+            data: { imageUrl, pattern },
+          })
+        }
+        return hasPattern
+      })
 
       // Excluir imágenes muy pequeñas (probablemente iconos)
       const isLikelyIcon =
@@ -255,12 +346,28 @@ export class ScrapingService extends BaseService {
 
       // Excluir imágenes de redes sociales y favicons
       const isSocialMedia =
-        lowerUrl.includes('facebook') ||
-        lowerUrl.includes('twitter') ||
-        lowerUrl.includes('instagram') ||
+        lowerUrl.includes('facebook.com') ||
+        lowerUrl.includes('twitter.com') ||
+        lowerUrl.includes('instagram.com') ||
         lowerUrl.includes('favicon')
 
-      return !hasUnwantedPattern && !isLikelyIcon && !isSocialMedia
+      const shouldKeep = !hasUnwantedPattern && !isLikelyIcon && !isSocialMedia
+
+      if (!shouldKeep) {
+        logger.debug('Imagen filtrada', {
+          context: 'ScrapingService',
+          data: {
+            imageUrl,
+            reasons: {
+              hasUnwantedPattern,
+              isLikelyIcon,
+              isSocialMedia,
+            },
+          },
+        })
+      }
+
+      return shouldKeep
     })
 
     // Ordenar por relevancia (imágenes más grandes primero)
@@ -284,11 +391,12 @@ export class ScrapingService extends BaseService {
       data: {
         originalCount: images.length,
         filteredCount: sortedImages.length,
+        removedCount: images.length - sortedImages.length,
         sample: sortedImages.slice(0, 3).map((img) => img.substring(0, 50) + '...'),
       },
     })
 
-    return sortedImages.slice(0, 5) // Limitar a 5 imágenes máximo
+    return sortedImages.slice(0, 10) // Limitar a 10 imágenes máximo
   }
 
   private isValidImageUrl(url: string): boolean {
@@ -299,7 +407,16 @@ export class ScrapingService extends BaseService {
       new URL(url)
 
       const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif']
-      return imageExtensions.some((ext) => url.toLowerCase().includes(ext))
+      const hasImageExtension = imageExtensions.some((ext) => url.toLowerCase().includes(ext))
+
+      if (!hasImageExtension) {
+        logger.debug('URL no tiene extensión de imagen válida', {
+          context: 'ScrapingService',
+          data: { url },
+        })
+      }
+
+      return hasImageExtension
     } catch {
       return false
     }

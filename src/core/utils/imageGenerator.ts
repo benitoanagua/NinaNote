@@ -18,10 +18,10 @@ export class ImageGenerator {
       canvas.height = 675
 
       if (baseImageUrl) {
-        // Modo con imagen de fondo usando proxy
-        await this.drawImageWithOverlay(ctx, baseImageUrl, index, canvas.width, canvas.height)
+        // MODO CON IMAGEN BASE: 3 capas
+        await this.drawImageWithLayers(ctx, baseImageUrl, index, canvas.width, canvas.height)
       } else {
-        // Modo sin imagen - solo color sólido
+        // MODO SIN IMAGEN BASE: 2 capas
         this.drawSolidBackground(ctx, index, canvas.width, canvas.height)
         this.drawNumber(ctx, index, canvas.width, canvas.height)
       }
@@ -36,21 +36,19 @@ export class ImageGenerator {
     }
   }
 
-  private async drawImageWithOverlay(
+  private async drawImageWithLayers(
     ctx: CanvasRenderingContext2D,
-    originalImageUrl: string,
+    baseImageUrl: string,
     index: number,
     width: number,
     height: number,
   ): Promise<void> {
     try {
-      // 1. Obtener URL proxied
-      const imageUrl = await this.proxy.getProxiedUrl(originalImageUrl)
-
-      // 2. Cargar imagen
+      // 1. PRIMERA CAPA: Imagen base
+      const imageUrl = await this.proxy.getProxiedUrl(baseImageUrl)
       const image = await this.loadImage(imageUrl)
 
-      // 3. Dibujar imagen manteniendo aspect ratio
+      // Dibujar imagen manteniendo aspect ratio
       const scale = Math.max(width / image.width, height / image.height)
       const scaledWidth = image.width * scale
       const scaledHeight = image.height * scale
@@ -59,19 +57,19 @@ export class ImageGenerator {
 
       ctx.drawImage(image, x, y, scaledWidth, scaledHeight)
 
-      // 4. Overlay semi-transparente
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
+      // 2. SEGUNDA CAPA: Color sólido con transparencia (50%)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)' // 50% de opacidad
       ctx.fillRect(0, 0, width, height)
 
-      // 5. Número centrado
+      // 3. TERCERA CAPA: Número centrado
       this.drawNumber(ctx, index, width, height)
 
-      logger.debug('Image with overlay generated successfully', {
+      logger.debug('Image with 3 layers generated successfully', {
         context: 'ImageGenerator',
-        data: { index, originalUrl: originalImageUrl.substring(0, 50) + '...' },
+        data: { index, baseImageUrl: baseImageUrl.substring(0, 50) + '...' },
       })
     } catch (error) {
-      logger.warn('Failed to draw image with overlay, using fallback', {
+      logger.warn('Failed to draw image with layers, using solid background', {
         context: 'ImageGenerator',
         data: error,
       })

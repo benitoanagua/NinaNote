@@ -1,5 +1,6 @@
 import { logger } from '@/utils/logger'
 import { imageGenerator } from '@/core/utils/imageGenerator'
+import { imageDistributor } from '@/core/utils/imageDistributor'
 import type { ThreadTweet } from '@/core/types'
 
 export const useImageManager = () => {
@@ -31,93 +32,34 @@ export const useImageManager = () => {
       },
     })
 
-    const distributedImages: string[] = []
+    try {
+      const distributedImages = await imageDistributor.distributeImages(availableImages, tweetCount)
 
-    for (let i = 0; i < tweetCount; i++) {
-      try {
-        let imageUrl = ''
+      const stats = imageDistributor.getDistributionStats(availableImages.length, tweetCount)
+      logger.success('Imágenes distribuidas exitosamente', {
+        context: 'ImageManager',
+        data: stats,
+      })
 
-        // Comportamiento según las reglas especificadas
-        if (availableImages.length === 0) {
-          // CASO 4: No hay imágenes - generar sólida con numeración
-          imageUrl = await imageGenerator.generateNumberedImage(i)
-          logger.debug(`Caso 4: Imagen sólida generada para tweet ${i + 1}`, {
-            context: 'ImageManager',
-          })
-        } else if (i < availableImages.length) {
-          // CASO 1 y 2: Hay imagen disponible para este índice
-          if (i === 0 && availableImages.length === 1) {
-            // CASO 2: Solo una imagen - primera imagen sin modificar
-            imageUrl = availableImages[0]
-            logger.debug(`Caso 2: Imagen original sin modificar para tweet ${i + 1}`, {
-              context: 'ImageManager',
-            })
-          } else {
-            // CASO 1: Imagen disponible - usar tal cual
-            imageUrl = availableImages[i]
-            logger.debug(`Caso 1: Imagen disponible para tweet ${i + 1}`, {
-              context: 'ImageManager',
-            })
-          }
-        } else {
-          // CASO 3: Más tweets que imágenes - usar primera imagen con overlay
-          imageUrl = await imageGenerator.generateNumberedImage(i, availableImages[0])
-          logger.debug(`Caso 3: Imagen con overlay para tweet ${i + 1}`, {
-            context: 'ImageManager',
-            data: { baseImage: availableImages[0].substring(0, 30) + '...' },
-          })
-        }
+      return distributedImages
+    } catch (error) {
+      logger.error('Error distribuyendo imágenes a tweets', {
+        context: 'ImageManager',
+        data: error,
+      })
 
-        distributedImages.push(imageUrl)
-      } catch (error) {
-        logger.error(`Error generando imagen para tweet ${i + 1}`, {
-          context: 'ImageManager',
-          data: error,
-        })
-        // Fallback: imagen sólida
+      // Fallback manual en caso de error del distribuidor
+      const fallbackImages: string[] = []
+      for (let i = 0; i < tweetCount; i++) {
         try {
           const fallbackImage = await imageGenerator.generateNumberedImage(i)
-          distributedImages.push(fallbackImage)
+          fallbackImages.push(fallbackImage)
         } catch {
-          distributedImages.push('')
+          fallbackImages.push('')
         }
       }
+      return fallbackImages
     }
-
-    const stats = getDistributionStats(availableImages.length, tweetCount, distributedImages)
-    logger.success('Imágenes distribuidas exitosamente', {
-      context: 'ImageManager',
-      data: stats,
-    })
-
-    return distributedImages
-  }
-
-  const getDistributionStats = (
-    availableCount: number,
-    tweetCount: number,
-    distributed: string[],
-  ) => {
-    const originalImages = distributed.filter((img) => img && !img.startsWith('data:image/')).length
-    const generatedImages = distributed.filter((img) => img && img.startsWith('data:image/')).length
-    const noImages = distributed.filter((img) => !img).length
-
-    return {
-      availableImages: availableCount,
-      tweetCount,
-      originalImagesUsed: originalImages,
-      generatedImages: generatedImages,
-      tweetsWithoutImages: noImages,
-      distributionCase: getDistributionCase(availableCount, tweetCount),
-    }
-  }
-
-  const getDistributionCase = (availableCount: number, tweetCount: number): string => {
-    if (availableCount === 0) return 'Caso 4: Sin imágenes - todas generadas'
-    if (availableCount === 1 && tweetCount > 1)
-      return 'Caso 2: 1 imagen - primera original, resto con overlay'
-    if (availableCount >= tweetCount) return 'Caso 1: Suficientes imágenes - todas originales'
-    return 'Caso 3: Más tweets que imágenes - algunas con overlay'
   }
 
   const filterContentImages = (images: string[], url: string): string[] => {
@@ -190,23 +132,23 @@ export const useImageManager = () => {
   }
 
   const extractValidImages = (images: string[], sourceUrl?: string): string[] => {
-    // Primero filtrar imágenes válidas
+    logger.debug('Imágenes antes de filtrar', {
+      context: 'ImageManager',
+      data: { images, sourceUrl },
+    })
+
     const validImages = images.filter((img) => isValidImageUrl(img))
-
-    // Luego filtrar contenido no deseado
     const contentImages = filterContentImages(validImages, sourceUrl || '')
-
-    // Ordenar por relevancia
     const sortedImages = sortImagesByRelevance(contentImages)
 
-    logger.debug('Imágenes de contenido extraídas', {
+    logger.debug('Imágenes después de filtrar', {
       context: 'ImageManager',
       data: {
         originalCount: images.length,
         validCount: validImages.length,
         contentCount: contentImages.length,
         finalCount: sortedImages.length,
-        finalImages: sortedImages.slice(0, 3).map((img) => img.substring(0, 30) + '...'),
+        finalImages: sortedImages,
       },
     })
 
@@ -240,7 +182,6 @@ export const useImageManager = () => {
       return updatedTweets
     } catch (error) {
       logger.error(`Error manejando fallo de imagen para tweet ${index + 1}`, {
-        // ← Cambiado i por index
         context: 'ImageManager',
         data: error,
       })
