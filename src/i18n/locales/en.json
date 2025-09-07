@@ -80,34 +80,21 @@
 
   "twitter": {
     "title": "Publish on Twitter",
-    "subtitle": "Share your thread directly or copy it to clipboard",
-    "config": {
-      "title": "Twitter API Configuration",
-      "description": "To publish directly, you need a Bearer Token from the Twitter API.",
-      "learnMore": "Learn how to get it here",
-      "tokenLabel": "Twitter Bearer Token",
-      "tokenPlaceholder": "AAAA...",
-      "tokenHelp": "Your token is only saved during this session and is never sent to our servers",
-      "tokenError": {
-        "invalid": "Invalid token. It must start with \"AAAA\" and be longer than 50 characters.",
-        "empty": "Please enter a token"
-      }
-    },
-    "publish": "Publish Thread",
+    "subtitle": "Choose how you want to publish your thread",
+    "openTwitter": "Publish on Twitter Directly",
+    "openBuffer": "Open Buffer App",
     "copy": "Copy to Clipboard",
-    "publishing": "Publishing...",
-    "tokenSave": "Save Token",
-    "tokenClear": "Clear Token",
-    "tokenConfigured": "Twitter token configured",
-    "showHide": "Show/Hide token",
     "success": {
-      "published": "Thread published successfully! {count} tweets were published to your Twitter account.",
-      "copied": "Thread copied to clipboard. You can paste it manually on Twitter."
+      "copied": "Thread copied. Paste it wherever you need"
     },
-    "validation": {
-      "noTweets": "No tweets to publish",
-      "longTweets": "{count} tweet(s) exceed 280 characters",
-      "beforePublishing": "Before publishing, check the following:"
+    "twitterOpened": "Twitter opened. Complete and publish",
+    "bufferOpened": "Buffer opened. Login and publish",
+    "copyFailed": "Error copying to clipboard",
+    "instructions": {
+      "title": "Instructions:",
+      "step1": "Use 'Publish on Twitter' to publish directly",
+      "step2": "Use 'Open Buffer' to schedule/publish from Buffer",
+      "step3": "Use 'Copy' to paste in other applications"
     }
   },
 
@@ -152,8 +139,7 @@
 
     "twitter": {
       "postFailed": "Error publishing thread to Twitter",
-      "copyFailed": "Error copying to clipboard",
-      "apiError": "Twitter API error: {message}"
+      "copyFailed": "Error copying to clipboard"
     }
   },
 

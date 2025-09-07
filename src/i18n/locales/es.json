@@ -80,34 +80,21 @@
 
   "twitter": {
     "title": "Publicar en Twitter",
-    "subtitle": "Comparte tu hilo directamente o cópialo al portapapeles",
-    "config": {
-      "title": "Configuración de Twitter API",
-      "description": "Para publicar directamente, necesitas un Bearer Token de la API de Twitter.",
-      "learnMore": "Aprende cómo obtenerlo aquí",
-      "tokenLabel": "Bearer Token de Twitter",
-      "tokenPlaceholder": "AAAA...",
-      "tokenHelp": "Tu token se guarda solo durante esta sesión y nunca se envía a nuestros servidores",
-      "tokenError": {
-        "invalid": "Token inválido. Debe comenzar con \"AAAA\" y tener más de 50 caracteres.",
-        "empty": "Por favor ingresa un token"
-      }
-    },
-    "publish": "Publicar Hilo",
+    "subtitle": "Elige cómo quieres publicar tu hilo",
+    "openTwitter": "Publicar en Twitter Directo",
+    "openBuffer": "Abrir Buffer App",
     "copy": "Copiar al Portapapeles",
-    "publishing": "Publicando...",
-    "tokenSave": "Guardar Token",
-    "tokenClear": "Limpiar Token",
-    "tokenConfigured": "Token de Twitter configurado",
-    "showHide": "Mostrar/Ocultar token",
     "success": {
-      "published": "¡Hilo publicado exitosamente! {count} tweets fueron publicados en tu cuenta de Twitter.",
-      "copied": "Hilo copiado al portapapeles. Puedes pegarlo manualmente en Twitter."
+      "copied": "Hilo copiado. Pégalo donde necesites"
     },
-    "validation": {
-      "noTweets": "No hay tweets para publicar",
-      "longTweets": "{count} tweet(s) exceden los 280 caracteres",
-      "beforePublishing": "Antes de publicar, revisa lo siguiente:"
+    "twitterOpened": "Twitter abierto. Completa y publica",
+    "bufferOpened": "Buffer abierto. Inicia sesión y publica",
+    "copyFailed": "Error al copiar al portapapeles",
+    "instructions": {
+      "title": "Instrucciones:",
+      "step1": "Usa 'Publicar en Twitter' para publicar directamente",
+      "step2": "Usa 'Abrir Buffer' para programar/publicar desde Buffer",
+      "step3": "Usa 'Copiar' para pegar en otras aplicaciones"
     }
   },
 
@@ -152,8 +139,7 @@
 
     "twitter": {
       "postFailed": "Error al publicar el hilo en Twitter",
-      "copyFailed": "Error al copiar al portapapeles",
-      "apiError": "Error de la API de Twitter: {message}"
+      "copyFailed": "Error al copiar al portapapeles"
     }
   },
 

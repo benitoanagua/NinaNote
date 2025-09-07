@@ -5,45 +5,8 @@ import { logger } from '@/utils/logger'
 
 export const useSessionStore = defineStore('session', () => {
   // Estado
-  const twitterToken = ref<string>('')
   const lastProcessedUrl = ref<string>('')
   const savedThreads = ref<SavedThread[]>([])
-
-  // Getters
-  const hasTwitterToken = () => twitterToken.value.length > 0
-  const isValidToken = () => twitterToken.value.length > 50 && twitterToken.value.startsWith('AAAA')
-
-  // Actions
-  const setTwitterToken = (token: string) => {
-    twitterToken.value = token.trim()
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('nina-note-token', token.trim())
-    }
-    logger.info('Twitter token set', { context: 'SessionStore' })
-  }
-
-  const loadTwitterToken = () => {
-    if (typeof window !== 'undefined') {
-      const stored = sessionStorage.getItem('nina-note-token')
-      if (stored) {
-        twitterToken.value = stored
-        logger.info('Twitter token loaded from sessionStorage', {
-          context: 'SessionStore',
-          data: { tokenLength: stored.length },
-        })
-      } else {
-        logger.info('No Twitter token found in sessionStorage', { context: 'SessionStore' })
-      }
-    }
-  }
-
-  const clearTwitterToken = () => {
-    twitterToken.value = ''
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('nina-note-token')
-    }
-    logger.info('Twitter token cleared', { context: 'SessionStore' })
-  }
 
   const setLastProcessedUrl = (url: string) => {
     lastProcessedUrl.value = url
@@ -166,8 +129,6 @@ export const useSessionStore = defineStore('session', () => {
     logger.debug('Session store state', {
       context: 'SessionStore',
       data: {
-        hasTwitterToken: hasTwitterToken(),
-        twitterTokenLength: twitterToken.value.length,
         lastProcessedUrl: lastProcessedUrl.value,
         savedThreadsCount: savedThreads.value.length,
         savedThreads: savedThreads.value.map((t) => ({
@@ -204,19 +165,8 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   return {
-    // Estado
-    twitterToken,
     lastProcessedUrl,
     savedThreads,
-
-    // Getters
-    hasTwitterToken,
-    isValidToken,
-
-    // Actions
-    setTwitterToken,
-    loadTwitterToken,
-    clearTwitterToken,
     setLastProcessedUrl,
     saveThread,
     loadSavedThreads,

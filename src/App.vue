@@ -217,7 +217,6 @@ const handleEscapeKey = (event: KeyboardEvent) => {
 }
 
 onMounted(() => {
-  sessionStore.loadTwitterToken()
   sessionStore.loadSavedThreads()
   sessionStore.logStoreState()
 

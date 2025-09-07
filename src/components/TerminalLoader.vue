@@ -17,9 +17,9 @@
             <p
               v-if="!isExpanded"
               class="text-sm font-medium text-onSurface truncate"
-              title="Contacto: Benito Anagua • benito.anagua@gmail.com • +591 72945548"
+              title="Contacto: benito.anagua@gmail.com • +591 72945548"
             >
-              Benito Anagua • benito.anagua@gmail.com • +591 72945548
+              benito.anagua@gmail.com • +591 72945548
             </p>
 
             <!-- Mostrar estado normal cuando está expandido -->
