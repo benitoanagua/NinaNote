@@ -7,10 +7,12 @@
         'bg-primary text-onPrimary shadow-sm': currentLocale === 'es',
         'text-onSurfaceVariant hover:text-onSurface': currentLocale !== 'es',
       }"
-      title="Español"
-      aria-label="Cambiar a español"
+      :title="currentLocale === 'es' ? 'Español (seleccionado)' : 'Cambiar a español'"
+      :aria-label="currentLocale === 'es' ? 'Español seleccionado' : 'Cambiar a español'"
+      :aria-pressed="currentLocale === 'es'"
     >
       <span class="text-sm">🇪🇸</span>
+      <span class="sr-only">Español</span>
     </button>
 
     <button
@@ -20,10 +22,12 @@
         'bg-primary text-onPrimary shadow-sm': currentLocale === 'en',
         'text-onSurfaceVariant hover:text-onSurface': currentLocale !== 'en',
       }"
-      title="English"
-      aria-label="Change to English"
+      :title="currentLocale === 'en' ? 'English (selected)' : 'Change to English'"
+      :aria-label="currentLocale === 'en' ? 'English selected' : 'Change to English'"
+      :aria-pressed="currentLocale === 'en'"
     >
       <span class="text-sm">🇺🇸</span>
+      <span class="sr-only">English</span>
     </button>
   </div>
 </template>
@@ -58,5 +62,16 @@ button {
 button:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* Mejoras para móviles */
+@media (max-width: 768px) {
+  .min-w-\[44px\] {
+    min-width: 36px;
+  }
+
+  .p-2 {
+    padding: 0.5rem;
+  }
 }
 </style>

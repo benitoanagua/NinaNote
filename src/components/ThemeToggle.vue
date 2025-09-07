@@ -1,9 +1,9 @@
 <template>
   <button
     @click="toggleTheme"
-    class="p-3 bg-surfaceContainerHighest rounded-full shadow-md3 hover:shadow-md3-lg transition-all duration-200"
+    class="p-2 md:p-3 bg-surfaceContainerHighest rounded-full shadow-md3 hover:shadow-md3-lg transition-all duration-200"
     :aria-label="`Cambiar a tema ${isDark ? 'claro' : 'oscuro'}`"
-    title="Cambiar tema"
+    :title="`Cambiar a tema ${isDark ? 'claro' : 'oscuro'}`"
   >
     <svg
       v-if="isDark"
