@@ -3,7 +3,6 @@ import type { AIModel, ThreadTweet } from '../types'
 import { BaseService } from '../base/BaseService'
 import { PROMPT_TEMPLATES, PromptEngine } from './PromptTemplate'
 import { logger, ErrorFactory } from '@/utils/logger'
-import { imageDistributor } from '../utils/imageDistributor'
 
 export class GoogleGenAIService extends BaseService {
   private ai: GoogleGenAI
@@ -55,18 +54,9 @@ export class GoogleGenAIService extends BaseService {
     }
   }
 
-  async generateThread(text: string, images: string[] = []): Promise<ThreadTweet[]> {
+  async generateThread(text: string): Promise<ThreadTweet[]> {
     this.logStart('Generating thread with Gemini')
     logger.ai.generating('gemini-2.0-flash')
-
-    // Log de las imágenes recibidas
-    logger.debug('Images received for thread generation', {
-      context: 'AI',
-      data: {
-        imageCount: images.length,
-        imageSample: images.slice(0, 3).map((img) => img.substring(0, 30) + '...'),
-      },
-    })
 
     try {
       const tweetCount = this.calculateTweetCount(text.length)
@@ -106,23 +96,8 @@ export class GoogleGenAIService extends BaseService {
         context: 'AI',
       })
 
-      // Usar el ImageDistributor refactorizado
-      const distributedImages = await imageDistributor.distributeImages(
-        images,
-        tweetContents.length,
-      )
-
-      const stats = imageDistributor.getDistributionStats(images.length, tweetContents.length)
-      logger.debug('Images distributed to tweets', {
-        context: 'AI',
-        data: {
-          imageCount: distributedImages.filter((img: string) => img && img.length > 0).length,
-          tweetCount: tweetContents.length,
-          distributionCase: stats.description,
-        },
-      })
-
-      const tweets = this.createThreadTweets(tweetContents, distributedImages)
+      // Crear tweets SIN imágenes (las imágenes se manejarán externamente)
+      const tweets = this.createThreadTweets(tweetContents)
 
       this.logSuccess(`Generated ${tweets.length} tweets`)
       logger.ai.success(tweets.length)
@@ -196,12 +171,12 @@ export class GoogleGenAIService extends BaseService {
       .filter((l) => l.length > 0)
   }
 
-  private createThreadTweets(contents: string[], images: string[]): ThreadTweet[] {
+  private createThreadTweets(contents: string[]): ThreadTweet[] {
     return contents.map((content, index) => ({
       id: `tweet-${Date.now()}-${index}`,
       content,
       charCount: content.length,
-      imageUrl: images[index],
+      imageUrl: undefined, // No generar imágenes automáticamente
     }))
   }
 }

@@ -20,7 +20,8 @@ export const useThreadManager = (originalContent: string, initialTweets: ThreadT
     logger.info('Iniciando regeneración completa del hilo', { context: 'ThreadManager' })
 
     try {
-      const newTweets = await generateThread(originalContent, [])
+      // LLAMADA ACTUALIZADA: solo un parámetro (sin array vacío de imágenes)
+      const newTweets = await generateThread(originalContent)
       tweets.value = newTweets
 
       logger.success('Hilo regenerado exitosamente', {

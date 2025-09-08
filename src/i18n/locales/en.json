@@ -65,7 +65,8 @@
     "regenerateAll": "Regenerate all",
     "regenerating": "Regenerating tweet...",
     "regeneratingAll": "Regenerating all tweets...",
-    "editPlaceholder": "Edit your tweet..."
+    "editPlaceholder": "Edit your tweet...",
+    "shareTweet": "Share this tweet on Twitter"
   },
 
   "history": {
@@ -79,22 +80,18 @@
   },
 
   "twitter": {
-    "title": "Publish on Twitter",
-    "subtitle": "Choose how you want to publish your thread",
-    "openTwitter": "Publish on Twitter Directly",
-    "openBuffer": "Open Buffer App",
+    "title": "Export Options",
+    "subtitle": "Export your thread for publishing",
     "copy": "Copy to Clipboard",
     "success": {
       "copied": "Thread copied. Paste it wherever you need"
     },
-    "twitterOpened": "Twitter opened. Complete and publish",
-    "bufferOpened": "Buffer opened. Login and publish",
     "copyFailed": "Error copying to clipboard",
     "instructions": {
       "title": "Instructions:",
-      "step1": "Use 'Publish on Twitter' to publish directly",
-      "step2": "Use 'Open Buffer' to schedule/publish from Buffer",
-      "step3": "Use 'Copy' to paste in other applications"
+      "step1": "Use the share button (🐦) on each tweet to publish it individually on Twitter",
+      "step2": "Use 'Copy' to paste the entire thread in other applications",
+      "step3": "Add images using the 'Add image' button on each tweet"
     }
   },
 

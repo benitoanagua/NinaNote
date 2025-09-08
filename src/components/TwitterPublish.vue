@@ -16,35 +16,13 @@
       </div>
     </div>
 
+    <!-- Mensajes -->
+    <div v-if="message" class="mb-4 p-4 rounded-lg" :class="messageClass">
+      <p class="text-sm">{{ message }}</p>
+    </div>
+
     <!-- Botones de acción -->
     <div class="space-y-4">
-      <!-- Opción Twitter Directo -->
-      <button
-        @click="openTwitterComposer"
-        :disabled="tweets.length === 0"
-        class="w-full py-3 bg-[#1DA1F2] text-white rounded-xl shadow-md3 hover:shadow-md3-lg disabled:opacity-60 disabled:pointer-events-none transition-all duration-200 font-medium flex items-center justify-center"
-      >
-        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-          <path
-            d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
-          />
-        </svg>
-        {{ $t('twitter.openTwitter') }}
-      </button>
-
-      <!-- Opción Buffer App -->
-      <button
-        @click="openBufferApp"
-        class="w-full py-3 bg-[#168EEA] text-white rounded-xl shadow-md3 hover:shadow-md3-lg transition-all duration-200 font-medium flex items-center justify-center"
-      >
-        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-          <path
-            d="M17.22 2H6.78C4.45 2 2.56 3.89 2.56 6.22v11.56c0 2.33 1.89 4.22 4.22 4.22h10.44c2.33 0 4.22-1.89 4.22-4.22V6.22C21.44 3.89 19.55 2 17.22 2zm-5.22 15.75h-3.75c-.41 0-.75-.34-.75-.75s.34-.75.75-.75h3.75c.41 0 .75.34.75.75s-.34.75-.75.75zm4.5-3H7.5c-.41 0-.75-.34-.75-.75s.34-.75.75-.75h8.99c.41 0 .75.34.75.75s-.34.75-.75.75zm0-3H7.5c-.41 0-.75-.34-.75-.75s.34-.75.75-.75h8.99c.41 0 .75.34.75.75s-.34.75-.75.75z"
-          />
-        </svg>
-        {{ $t('twitter.openBuffer') }}
-      </button>
-
       <!-- Copiar al portapapeles -->
       <button
         @click="copyToClipboard"
@@ -61,11 +39,6 @@
         </svg>
         {{ $t('twitter.copy') }}
       </button>
-    </div>
-
-    <!-- Mensajes -->
-    <div v-if="message" class="mt-4 p-4 rounded-lg" :class="messageClass">
-      <p class="text-sm">{{ message }}</p>
     </div>
 
     <!-- Instrucciones -->
@@ -100,31 +73,6 @@ const messageClass = computed(() => {
     ? 'bg-primaryContainer/30 text-primary border border-primaryContainer'
     : 'bg-errorContainer/30 text-error border border-errorContainer'
 })
-
-// Abrir Twitter Composer directo
-const openTwitterComposer = () => {
-  if (props.tweets.length === 0) return
-
-  const firstTweet = props.tweets[0].content
-  const encodedText = encodeURIComponent(firstTweet)
-
-  window.open(
-    `https://twitter.com/intent/tweet?text=${encodedText}`,
-    '_blank',
-    'width=550,height=420,menubar=no,toolbar=no,resizable=yes,scrollbars=yes',
-  )
-
-  message.value = '✅ ' + t('twitter.twitterOpened')
-  clearMessageAfterDelay()
-}
-
-// Abrir Buffer App
-const openBufferApp = () => {
-  window.open('https://buffer.com/app', '_blank')
-
-  message.value = '✅ ' + t('twitter.bufferOpened')
-  clearMessageAfterDelay()
-}
 
 // Copiar al portapapeles
 const copyToClipboard = async () => {

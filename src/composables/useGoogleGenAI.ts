@@ -7,13 +7,13 @@ export const useGoogleGenAI = () => {
   const isGenerating = ref(false)
   const error = ref<string | null>(null)
 
-  const generateThread = async (text: string, images: string[] = []): Promise<ThreadTweet[]> => {
+  const generateThread = async (text: string): Promise<ThreadTweet[]> => {
     isGenerating.value = true
     error.value = null
 
     logger.info('Starting thread generation process', {
       context: 'useGoogleGenAI',
-      data: { textLength: text.length, imageCount: images.length },
+      data: { textLength: text.length },
     })
 
     try {
@@ -22,14 +22,15 @@ export const useGoogleGenAI = () => {
         data: { textPreview: text.substring(0, 100) + '...' },
       })
 
-      const result = await googleGenAIService.generateThread(text, images)
+      // LLAMADA ACTUALIZADA: sin parámetro de imágenes
+      const result = await googleGenAIService.generateThread(text)
 
       logger.success('Thread generation completed successfully', {
         context: 'useGoogleGenAI',
         data: {
           tweetCount: result.length,
           totalCharacters: result.reduce((sum, t) => sum + t.charCount, 0),
-          imagesUsed: result.filter((t) => t.imageUrl).length,
+          // Nota: las imágenes ya no se generan automáticamente
         },
       })
 

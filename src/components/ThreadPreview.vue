@@ -67,6 +67,19 @@
           </div>
 
           <div class="flex items-center gap-2">
+            <!-- Botón para compartir en Twitter -->
+            <button
+              @click="shareSingleTweet(index)"
+              class="p-2 text-onSurfaceVariant hover:text-[#1DA1F2] rounded-full transition-colors"
+              :title="$t('thread.shareTweet')"
+            >
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+                />
+              </svg>
+            </button>
+
             <button
               @click="regenerateSingle(index)"
               :disabled="regeneratingIndex === index"
@@ -120,6 +133,49 @@
             <p class="text-xs text-onSurfaceVariant mt-1 text-center">
               Imagen {{ index + 1 }} de {{ tweets.length }}
             </p>
+          </div>
+
+          <!-- Botón para agregar imagen si no hay -->
+          <div v-if="!tweet.imageUrl && editingIndex !== index" class="mt-3">
+            <button
+              @click="showImageInput(index)"
+              class="px-3 py-2 text-sm bg-surfaceContainerHighest text-onSurfaceVariant rounded-lg hover:bg-surfaceContainerHighest hover:text-onSurface transition-colors flex items-center"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              Agregar imagen
+            </button>
+          </div>
+
+          <!-- Input para URL de imagen -->
+          <div v-if="showImageInputIndex === index" class="mt-3 space-y-2">
+            <input
+              v-model="imageUrlInput"
+              type="url"
+              placeholder="Pega la URL de la imagen"
+              class="input-outlined w-full p-2 text-sm bg-surfaceContainerHighest border border-outline rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-onSurface transition-colors"
+            />
+            <div class="flex gap-2">
+              <button
+                @click="cancelImageInput"
+                class="px-3 py-1 text-sm text-onSurfaceVariant hover:text-onSurface rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                @click="saveImageUrl(index)"
+                :disabled="!isValidImageUrl(imageUrlInput)"
+                class="px-3 py-1 text-sm bg-primary text-onPrimary rounded-lg hover:bg-primary disabled:opacity-60 transition-colors"
+              >
+                Guardar imagen
+              </button>
+            </div>
           </div>
 
           <div v-else class="space-y-2">
@@ -233,7 +289,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue'
+import { watch, ref } from 'vue'
 import { useThreadManager } from '@/composables/useThreadManager'
 import type { ThreadTweet } from '@/core/types'
 
@@ -247,6 +303,10 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   tweetsUpdated: [tweets: ThreadTweet[]]
 }>()
+
+// Estado para manejar imágenes
+const showImageInputIndex = ref<number | null>(null)
+const imageUrlInput = ref('')
 
 // Usar el composable para manejar la lógica
 const {
@@ -263,6 +323,61 @@ const {
   handleImageError,
   getThreadSizeLabel,
 } = useThreadManager(props.originalContent, props.tweets)
+
+// Métodos para manejar imágenes
+const showImageInput = (index: number) => {
+  showImageInputIndex.value = index
+  imageUrlInput.value = ''
+}
+
+const cancelImageInput = () => {
+  showImageInputIndex.value = null
+  imageUrlInput.value = ''
+}
+
+const saveImageUrl = (index: number) => {
+  if (isValidImageUrl(imageUrlInput.value)) {
+    const updatedTweets = [...tweets.value]
+    updatedTweets[index] = {
+      ...updatedTweets[index],
+      imageUrl: imageUrlInput.value,
+    }
+    tweets.value = updatedTweets
+    showImageInputIndex.value = null
+    imageUrlInput.value = ''
+  }
+}
+
+const isValidImageUrl = (url: string): boolean => {
+  if (!url) return false
+  // Validar URL de imagen
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif']
+  return (
+    imageExtensions.some((ext) => url.toLowerCase().includes(ext)) ||
+    url.startsWith('data:image/') ||
+    url.startsWith('blob:')
+  )
+}
+
+const shareSingleTweet = (index: number) => {
+  const tweet = tweets.value[index]
+  let text = tweet.content
+
+  // Si hay imagen, no podemos incluirla en el intent directo de Twitter
+  // pero podemos mencionar que hay imagen
+  if (tweet.imageUrl) {
+    text += '\n\n📸 Incluye imagen'
+  }
+
+  const encodedText = encodeURIComponent(text)
+  const url = `https://twitter.com/intent/tweet?text=${encodedText}`
+
+  window.open(
+    url,
+    '_blank',
+    'width=550,height=420,menubar=no,toolbar=no,resizable=yes,scrollbars=yes',
+  )
+}
 
 // Emitir actualizaciones cuando los tweets cambien
 watch(

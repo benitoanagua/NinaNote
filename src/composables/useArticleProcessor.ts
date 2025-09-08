@@ -89,21 +89,28 @@ export const useArticleProcessor = () => {
     // Validar longitud mínima
     validateContentLength(contentResult.content.length)
 
-    // 2. Generar hilo con IA - ¡PASAR LAS IMÁGENES SCRAPEADAS!
-    const generatedTweets = await generateThread(contentResult.content, articleImages.value)
-    tweets.value = generatedTweets
+    // 2. Generar hilo con IA
+    const generatedTweets = await generateThread(contentResult.content)
+
+    // 3. Asignar imágenes scrapeadas a los tweets
+    const tweetsWithImages = generatedTweets.map((tweet, index) => ({
+      ...tweet,
+      imageUrl: articleImages.value[index] || '', // Asignar imagen si existe
+    }))
+
+    tweets.value = tweetsWithImages
 
     logger.success('Hilo de Twitter generado exitosamente', {
       context: 'ArticleProcessor',
       data: {
-        tweetCount: generatedTweets.length,
-        totalCharacters: generatedTweets.reduce((sum, t) => sum + t.charCount, 0),
-        tweetsWithImages: generatedTweets.filter((t) => t.imageUrl).length,
+        tweetCount: tweetsWithImages.length,
+        totalCharacters: tweetsWithImages.reduce((sum, t) => sum + t.charCount, 0),
+        tweetsWithImages: tweetsWithImages.filter((t) => t.imageUrl && t.imageUrl !== '').length,
       },
     })
 
-    // 3. Guardar en historial
-    await saveToHistory(url, contentResult.title, generatedTweets)
+    // 4. Guardar en historial
+    await saveToHistory(url, contentResult.title, tweetsWithImages)
 
     logger.info('Procesamiento completado exitosamente', {
       context: 'ArticleProcessor',
@@ -169,6 +176,7 @@ export const useArticleProcessor = () => {
       data: {
         tweetCount: updatedTweets.length,
         longTweets: updatedTweets.filter((t) => t.charCount > 280).length,
+        tweetsWithImages: updatedTweets.filter((t) => t.imageUrl && t.imageUrl !== '').length,
       },
     })
   }

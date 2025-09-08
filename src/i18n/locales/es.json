@@ -65,7 +65,8 @@
     "regenerateAll": "Regenerar todo",
     "regenerating": "Regenerando tweet...",
     "regeneratingAll": "Regenerando todos los tweets...",
-    "editPlaceholder": "Edita tu tweet..."
+    "editPlaceholder": "Edita tu tweet...",
+    "shareTweet": "Compartir este tweet en Twitter"
   },
 
   "history": {
@@ -79,22 +80,18 @@
   },
 
   "twitter": {
-    "title": "Publicar en Twitter",
-    "subtitle": "Elige cómo quieres publicar tu hilo",
-    "openTwitter": "Publicar en Twitter Directo",
-    "openBuffer": "Abrir Buffer App",
+    "title": "Opciones de Exportación",
+    "subtitle": "Exporta tu hilo para publicarlo",
     "copy": "Copiar al Portapapeles",
     "success": {
       "copied": "Hilo copiado. Pégalo donde necesites"
     },
-    "twitterOpened": "Twitter abierto. Completa y publica",
-    "bufferOpened": "Buffer abierto. Inicia sesión y publica",
     "copyFailed": "Error al copiar al portapapeles",
     "instructions": {
       "title": "Instrucciones:",
-      "step1": "Usa 'Publicar en Twitter' para publicar directamente",
-      "step2": "Usa 'Abrir Buffer' para programar/publicar desde Buffer",
-      "step3": "Usa 'Copiar' para pegar en otras aplicaciones"
+      "step1": "Usa el botón de compartir (🐦) en cada tweet para publicarlo individualmente en Twitter",
+      "step2": "Usa 'Copiar' para pegar todo el hilo en otras aplicaciones",
+      "step3": "Agrega imágenes usando el botón 'Agregar imagen' en cada tweet"
     }
   },
 
