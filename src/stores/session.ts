@@ -1,12 +1,88 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { SavedThread, ThreadTweet } from '@/core/types'
 import { logger } from '@/utils/logger'
+
+// Clave para el almacenamiento diario
+const getDailyStorageKey = (): string => {
+  const today = new Date().toISOString().split('T')[0] // Formato YYYY-MM-DD
+  return `nina-note-daily-${today}`
+}
 
 export const useSessionStore = defineStore('session', () => {
   // Estado
   const lastProcessedUrl = ref<string>('')
   const savedThreads = ref<SavedThread[]>([])
+  const dailyGenerationLimit = ref<number>(5) // Límite de GENERACIÓN por día
+  const maxSavedThreads = ref<number>(20) // Límite de ALMACENAMIENTO (puede ser mayor)
+  const threadsGeneratedToday = ref<number>(0)
+  const canGenerateMore = ref<boolean>(true)
+
+  // Computed
+  const remainingThreads = computed(() =>
+    Math.max(0, dailyGenerationLimit.value - threadsGeneratedToday.value),
+  )
+  const hasReachedGenerationLimit = computed(
+    () => threadsGeneratedToday.value >= dailyGenerationLimit.value,
+  )
+
+  // Inicializar contador diario
+  const initializeDailyCounter = () => {
+    if (typeof window === 'undefined') return
+
+    const dailyKey = getDailyStorageKey()
+    const stored = localStorage.getItem(dailyKey)
+
+    if (stored) {
+      try {
+        const data = JSON.parse(stored)
+        threadsGeneratedToday.value = data.count || 0
+        canGenerateMore.value = data.canGenerateMore !== false
+      } catch (e) {
+        logger.warn('Error parsing daily counter data', {
+          context: 'SessionStore',
+          data: e,
+        })
+        threadsGeneratedToday.value = 0
+        canGenerateMore.value = true
+      }
+    } else {
+      // Nuevo día, resetear contador
+      threadsGeneratedToday.value = 0
+      canGenerateMore.value = true
+      saveDailyCounter()
+    }
+
+    logger.info('Daily counter initialized', {
+      context: 'SessionStore',
+      data: {
+        generatedToday: threadsGeneratedToday.value,
+        remaining: remainingThreads.value,
+        hasReachedLimit: hasReachedGenerationLimit.value,
+      },
+    })
+  }
+
+  // Guardar contador diario
+  const saveDailyCounter = () => {
+    if (typeof window === 'undefined') return
+
+    const dailyKey = getDailyStorageKey()
+    const data = {
+      count: threadsGeneratedToday.value,
+      canGenerateMore: canGenerateMore.value,
+      timestamp: new Date().toISOString(),
+    }
+
+    try {
+      localStorage.setItem(dailyKey, JSON.stringify(data))
+    } catch (error) {
+      logger.error('Failed to save daily counter', {
+        context: 'SessionStore',
+        data: error,
+      })
+    }
+  }
 
   const setLastProcessedUrl = (url: string) => {
     lastProcessedUrl.value = url
@@ -16,7 +92,45 @@ export const useSessionStore = defineStore('session', () => {
     })
   }
 
-  const saveThread = (thread: { url: string; title: string; tweets: ThreadTweet[] }) => {
+  const incrementDailyCounter = (): boolean => {
+    if (hasReachedGenerationLimit.value) {
+      canGenerateMore.value = false
+      saveDailyCounter()
+      return false
+    }
+
+    threadsGeneratedToday.value += 1
+    saveDailyCounter()
+
+    logger.info('Daily counter incremented', {
+      context: 'SessionStore',
+      data: {
+        newCount: threadsGeneratedToday.value,
+        remaining: remainingThreads.value,
+      },
+    })
+
+    return true
+  }
+
+  const saveThread = (thread: { url: string; title: string; tweets: ThreadTweet[] }): boolean => {
+    // Verificar límite diario de GENERACIÓN
+    if (hasReachedGenerationLimit.value) {
+      logger.warn('Daily generation limit reached, cannot save thread', {
+        context: 'SessionStore',
+        data: {
+          currentCount: threadsGeneratedToday.value,
+          limit: dailyGenerationLimit.value,
+        },
+      })
+      return false
+    }
+
+    // Incrementar contador de GENERACIÓN
+    if (!incrementDailyCounter()) {
+      return false
+    }
+
     const savedThread: SavedThread = {
       id: Date.now().toString(),
       ...thread,
@@ -26,11 +140,16 @@ export const useSessionStore = defineStore('session', () => {
     // Agregar al inicio del array
     savedThreads.value.unshift(savedThread)
 
-    // Mantener solo los últimos 10 hilos
-    if (savedThreads.value.length > 10) {
-      const removedCount = savedThreads.value.length - 10
-      savedThreads.value = savedThreads.value.slice(0, 10)
-      logger.debug(`Removed ${removedCount} old threads due to limit`, { context: 'SessionStore' })
+    // Mantener solo el límite de ALMACENAMIENTO (no de generación)
+    if (savedThreads.value.length > maxSavedThreads.value) {
+      const removedThread = savedThreads.value.pop()
+      logger.debug(`Removed oldest thread due to storage limit`, {
+        context: 'SessionStore',
+        data: {
+          removedThreadId: removedThread?.id,
+          storageLimit: maxSavedThreads.value,
+        },
+      })
     }
 
     // Guardar en localStorage
@@ -44,7 +163,9 @@ export const useSessionStore = defineStore('session', () => {
             title: savedThread.title,
             tweetCount: savedThread.tweets.length,
             totalThreads: savedThreads.value.length,
-            url: savedThread.url.substring(0, 30) + (savedThread.url.length > 30 ? '...' : ''),
+            dailyCount: threadsGeneratedToday.value,
+            remainingDaily: remainingThreads.value,
+            storageLimit: maxSavedThreads.value,
           },
         })
       } catch (error) {
@@ -54,6 +175,8 @@ export const useSessionStore = defineStore('session', () => {
         })
       }
     }
+
+    return true
   }
 
   const loadSavedThreads = () => {
@@ -64,10 +187,14 @@ export const useSessionStore = defineStore('session', () => {
           const parsed = JSON.parse(stored)
           // Asegurarnos de que sea un array válido
           if (Array.isArray(parsed)) {
-            savedThreads.value = parsed
+            savedThreads.value = parsed.slice(0, maxSavedThreads.value) // Aplicar límite de almacenamiento
             logger.success('Threads loaded from localStorage', {
               context: 'SessionStore',
-              data: { threadCount: parsed.length },
+              data: {
+                threadCount: parsed.length,
+                loadedCount: savedThreads.value.length,
+                storageLimit: maxSavedThreads.value,
+              },
             })
           } else {
             logger.warn('Invalid threads data in localStorage, resetting...', {
@@ -131,6 +258,12 @@ export const useSessionStore = defineStore('session', () => {
       data: {
         lastProcessedUrl: lastProcessedUrl.value,
         savedThreadsCount: savedThreads.value.length,
+        dailyGenerationLimit: dailyGenerationLimit.value,
+        maxSavedThreads: maxSavedThreads.value,
+        threadsGeneratedToday: threadsGeneratedToday.value,
+        remainingThreads: remainingThreads.value,
+        hasReachedGenerationLimit: hasReachedGenerationLimit.value,
+        canGenerateMore: canGenerateMore.value,
         savedThreads: savedThreads.value.map((t) => ({
           id: t.id,
           title: t.title,
@@ -139,38 +272,27 @@ export const useSessionStore = defineStore('session', () => {
         })),
       },
     })
-
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('nina-note-threads')
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored)
-          logger.debug('LocalStorage threads state', {
-            context: 'SessionStore',
-            data: {
-              storedThreadsCount: Array.isArray(parsed) ? parsed.length : 'Invalid format',
-              storedData: stored.substring(0, 200) + (stored.length > 200 ? '...' : ''),
-            },
-          })
-        } catch (e) {
-          logger.warn('Cannot parse localStorage data for debugging', {
-            context: 'SessionStore',
-            data: e,
-          })
-        }
-      } else {
-        logger.debug('No data found in localStorage for threads', { context: 'SessionStore' })
-      }
-    }
   }
+
+  // Inicializar al crear el store
+  initializeDailyCounter()
 
   return {
     lastProcessedUrl,
     savedThreads,
+    dailyGenerationLimit,
+    maxSavedThreads,
+    threadsGeneratedToday,
+    remainingThreads,
+    hasReachedGenerationLimit,
+    canGenerateMore,
+
     setLastProcessedUrl,
     saveThread,
     loadSavedThreads,
     deleteThread,
+    incrementDailyCounter,
+    initializeDailyCounter,
     logStoreState,
   }
 })

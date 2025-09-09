@@ -29,6 +29,18 @@ export const useThreadHistory = () => {
         return false
       }
 
+      // Validar límite diario de GENERACIÓN
+      if (sessionStore.hasReachedGenerationLimit) {
+        logger.warn('Daily generation limit reached, cannot save thread', {
+          context: 'ThreadHistory',
+          data: {
+            generatedToday: sessionStore.threadsGeneratedToday,
+            limit: sessionStore.dailyGenerationLimit,
+          },
+        })
+        return false
+      }
+
       // Validar que los tweets tengan contenido
       const invalidTweets = tweets.filter((t) => !t.content || t.content.trim().length === 0)
       if (invalidTweets.length > 0) {
@@ -49,22 +61,31 @@ export const useThreadHistory = () => {
       }
 
       // Guardar en el store
-      sessionStore.saveThread({
+      const success = sessionStore.saveThread({
         url,
         title,
         tweets: validTweets,
       })
 
-      logger.success('Thread successfully saved to history', {
-        context: 'ThreadHistory',
-        data: {
-          tweetCount: validTweets.length,
-          title,
-          totalThreads: sessionStore.savedThreads.length,
-        },
-      })
+      if (success) {
+        logger.success('Thread successfully saved to history', {
+          context: 'ThreadHistory',
+          data: {
+            tweetCount: validTweets.length,
+            title,
+            totalThreads: sessionStore.savedThreads.length,
+            dailyCount: sessionStore.threadsGeneratedToday,
+            remainingDaily: sessionStore.remainingThreads,
+            storageLimit: sessionStore.maxSavedThreads,
+          },
+        })
+      } else {
+        logger.warn('Thread not saved due to daily limit', {
+          context: 'ThreadHistory',
+        })
+      }
 
-      return true
+      return success
     } catch (error) {
       logger.error('Failed to save thread to history', {
         context: 'ThreadHistory',
@@ -110,5 +131,11 @@ export const useThreadHistory = () => {
     getRecentThreads,
     hasThreads: () => sessionStore.savedThreads.length > 0,
     threadCount: () => sessionStore.savedThreads.length,
+    dailyGenerationLimit: sessionStore.dailyGenerationLimit,
+    maxSavedThreads: sessionStore.maxSavedThreads,
+    threadsGeneratedToday: sessionStore.threadsGeneratedToday,
+    remainingThreads: sessionStore.remainingThreads,
+    hasReachedGenerationLimit: sessionStore.hasReachedGenerationLimit,
+    canGenerateMore: sessionStore.canGenerateMore,
   }
 }

@@ -5,7 +5,64 @@
         <h1 class="text-3xl font-semibold text-onSurface mb-2">{{ $t('history.title') }}</h1>
         <p class="text-onSurfaceVariant">{{ $t('history.subtitle') }}</p>
 
-        <!-- Estadísticas del historial -->
+        <!-- Banner de límite diario de GENERACIÓN -->
+        <div
+          v-if="threadHistory.hasReachedGenerationLimit"
+          class="mt-4 bg-errorContainer/30 border border-errorContainer rounded-lg p-4"
+        >
+          <div class="flex items-start">
+            <svg
+              class="w-6 h-6 text-error mr-3 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.502 0L4.732 15.5c-.77.833.192 2.5 1.732 2.5z"
+              />
+            </svg>
+            <div>
+              <h3 class="text-error font-semibold mb-1">Límite diario de generación alcanzado</h3>
+              <p class="text-error text-sm">
+                Has generado {{ threadHistory.threadsGeneratedToday }} de
+                {{ threadHistory.dailyGenerationLimit }} hilos hoy. Podrás generar
+                {{ threadHistory.dailyGenerationLimit }} hilos más mañana.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contador de hilos de GENERACIÓN -->
+        <div
+          v-else-if="threadHistory.threadsGeneratedToday > 0"
+          class="mt-4 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-4"
+        >
+          <div class="flex items-center justify-center space-x-6">
+            <div class="text-center">
+              <div class="text-2xl font-semibold text-primary">
+                {{ threadHistory.threadsGeneratedToday }}
+              </div>
+              <div class="text-sm text-onSurfaceVariant">Hilos generados hoy</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-semibold text-primary">
+                {{ threadHistory.remainingThreads }}
+              </div>
+              <div class="text-sm text-onSurfaceVariant">Restantes hoy</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-semibold text-primary">
+                {{ threadHistory.dailyGenerationLimit }}
+              </div>
+              <div class="text-sm text-onSurfaceVariant">Límite diario</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Estadísticas del historial (ALMACENAMIENTO) -->
         <div
           v-if="sessionStore.savedThreads.length > 0"
           class="mt-4 bg-surfaceContainerHigh rounded-lg p-4"
@@ -27,9 +84,9 @@
             </div>
             <div class="text-center">
               <div class="text-2xl font-semibold text-primaryContainer">
-                {{ totalImages }}
+                {{ threadHistory.maxSavedThreads }}
               </div>
-              <div class="text-sm text-onSurfaceVariant">Imágenes totales</div>
+              <div class="text-sm text-onSurfaceVariant">Límite almacenamiento</div>
             </div>
           </div>
         </div>
@@ -56,6 +113,23 @@
       </div>
 
       <div v-else class="space-y-6">
+        <!-- Información de almacenamiento -->
+        <div class="bg-surfaceContainerHigh rounded-xl p-4 text-center">
+          <p class="text-onSurfaceVariant text-sm">
+            📁 Mostrando {{ sessionStore.savedThreads.length }} hilos guardados
+          </p>
+          <p class="text-onSurfaceVariant/60 text-xs mt-1">
+            Límite de almacenamiento: {{ threadHistory.maxSavedThreads }} hilos.
+            <span
+              v-if="sessionStore.savedThreads.length >= threadHistory.maxSavedThreads"
+              class="text-primary font-medium"
+            >
+              Los hilos más antiguos se eliminarán automáticamente al guardar nuevos.
+            </span>
+          </p>
+        </div>
+
+        <!-- Lista de todos los hilos guardados -->
         <div
           v-for="thread in sessionStore.savedThreads"
           :key="thread.id"
@@ -149,7 +223,7 @@
                 {{ tweet.content }}
               </p>
 
-              <!-- Mostrar imagen si existe con mejor feedback -->
+              <!-- Mostrar imagen si existe -->
               <div v-if="tweet.imageUrl && isValidImageUrl(tweet.imageUrl)" class="mt-3 relative">
                 <img
                   :src="normalizeImageUrl(tweet.imageUrl)"
@@ -267,10 +341,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useSessionStore } from '@/stores/session'
+import { useThreadHistory } from '@/composables/useThreadHistory'
 import { useI18n } from 'vue-i18n'
 import { logger } from '@/utils/logger'
 
 const sessionStore = useSessionStore()
+const threadHistory = useThreadHistory()
 const { t } = useI18n()
 
 // Función para validar imágenes
