@@ -154,7 +154,7 @@ const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
   maxVisibleLogs: 15,
   maxTotalLogs: 60,
-  autoExpand: true,
+  autoExpand: false,
 })
 
 // Usar el composable

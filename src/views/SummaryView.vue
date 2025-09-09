@@ -45,7 +45,7 @@
         </div>
       </div>
 
-      <!-- Estadísticas de procesamiento -->
+      <!-- Estadísticas de procesamiento mejoradas -->
       <div
         v-if="!errorMessage && tweets.length > 0"
         class="mb-6 bg-surfaceContainerHigh rounded-xl p-4"
@@ -58,22 +58,86 @@
             </div>
             <div class="text-center">
               <div class="text-2xl font-semibold text-secondary">{{ articleImages.length }}</div>
-              <div class="text-sm text-onSurfaceVariant">Imágenes</div>
+              <div class="text-sm text-onSurfaceVariant">Imágenes encontradas</div>
             </div>
             <div class="text-center">
               <div class="text-2xl font-semibold text-tertiary">
-                {{ Math.round((articleContent.length / 1000) * 100) / 100 }}k
+                {{ imageStats.tweetsWithImages }}/{{ tweets.length }}
               </div>
-              <div class="text-sm text-onSurfaceVariant">Caracteres</div>
+              <div class="text-sm text-onSurfaceVariant">Con imágenes</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-semibold text-primaryContainer">
+                {{ imageStats.coverage }}%
+              </div>
+              <div class="text-sm text-onSurfaceVariant">Cobertura</div>
             </div>
           </div>
           <div class="text-right">
-            <div class="text-sm text-onSurfaceVariant">
-              {{ imageStats.tweetsWithImages }}/{{ tweets.length }} tweets con imágenes
+            <div
+              v-if="articleImages.length > 0"
+              class="text-xs text-onSurfaceVariant/60 cursor-pointer hover:text-primary mb-1"
+              @click="showImageDetails = !showImageDetails"
+            >
+              {{ showImageDetails ? 'Ocultar' : 'Ver' }} detalles de imágenes
             </div>
             <div class="text-xs text-onSurfaceVariant/60">
-              Cobertura: {{ imageStats.imageCoverage }}%
+              {{ imageStats.usedImages }}/{{ articleImages.length }} imágenes usadas
             </div>
+          </div>
+        </div>
+
+        <!-- Detalles de imágenes -->
+        <div
+          v-if="showImageDetails && articleImages.length > 0"
+          class="mt-4 pt-4 border-t border-outlineVariant/50"
+        >
+          <h4 class="text-sm font-medium text-onSurface mb-2">
+            Imágenes encontradas en el artículo:
+          </h4>
+          <div class="mb-2 text-xs text-onSurfaceVariant">
+            Total: {{ articleImages.length }} imágenes • Válidas:
+            {{ imageStats.totalAvailableImages }} • Usadas: {{ imageStats.usedImages }} • Sin usar:
+            {{ imageStats.unusedImages }}
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-60 overflow-y-auto p-1">
+            <div
+              v-for="(img, index) in articleImages"
+              :key="index"
+              class="relative border-2 rounded-lg p-1 transition-all"
+              :class="{
+                'border-primary shadow-md': isImageUsed(img),
+                'border-outlineVariant': !isImageUsed(img),
+                'border-error': !isValidImageUrl(img),
+              }"
+            >
+              <img
+                :src="img"
+                :alt="`Imagen ${index + 1}`"
+                class="w-full h-20 object-cover rounded"
+                @error="handleDetailImageError(index)"
+                @load="handleDetailImageLoad(index)"
+              />
+              <div class="absolute top-1 right-1 bg-black/70 text-white text-xs px-1 rounded">
+                {{ index + 1 }}
+              </div>
+              <div
+                class="text-xs text-center mt-1 truncate"
+                :class="{
+                  'text-primary': isImageUsed(img),
+                  'text-onSurfaceVariant': !isImageUsed(img),
+                  'text-error': !isValidImageUrl(img),
+                }"
+              >
+                {{ isImageUsed(img) ? '✓ Usada' : 'No usada' }}
+                <span v-if="!isValidImageUrl(img)"> • Inválida</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="imageStats.unusedImages > 0" class="mt-3 text-xs text-onSurfaceVariant/60">
+            💡 Hay {{ imageStats.unusedImages }} imágenes disponibles que puedes asignar manualmente
+            en los tweets
           </div>
         </div>
       </div>
@@ -124,11 +188,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch, computed } from 'vue'
+import { onMounted, onUnmounted, watch, computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useArticleProcessor } from '@/composables/useArticleProcessor'
 import ThreadPreview from '@/components/ThreadPreview.vue'
 import { logger } from '@/utils/logger'
+import { isValidImageUrl } from '@/utils/imageUtils'
 
 const route = useRoute()
 const {
@@ -144,10 +209,17 @@ const {
   getImageStats,
 } = useArticleProcessor()
 
+const showImageDetails = ref(false)
+
 // Computed para estadísticas de imágenes
 const imageStats = computed(() => {
   return getImageStats()
 })
+
+// Verificar si una imagen específica está siendo usada
+const isImageUsed = (imageUrl: string) => {
+  return tweets.value.some((tweet) => tweet.imageUrl === imageUrl)
+}
 
 // Watch for URL changes
 watch(
@@ -162,6 +234,25 @@ watch(
     }
   },
 )
+
+// Log detallado cuando las imágenes cambian
+watch(articleImages, (newImages) => {
+  if (newImages.length > 0) {
+    logger.info('Imágenes disponibles en SummaryView', {
+      context: 'SummaryView',
+      data: {
+        count: newImages.length,
+        validImages: newImages.filter((img) => isValidImageUrl(img)).length,
+        images: newImages.slice(0, 5).map((img, idx) => ({
+          index: idx,
+          url: img.substring(0, 40) + (img.length > 40 ? '...' : ''),
+          valid: isValidImageUrl(img),
+          used: isImageUsed(img),
+        })),
+      },
+    })
+  }
+})
 
 // Cargar automáticamente al montar el componente
 onMounted(() => {
@@ -179,6 +270,20 @@ onMounted(() => {
   }
 })
 
+const handleDetailImageError = (index: number) => {
+  logger.warn('Error loading detail image', {
+    context: 'SummaryView',
+    data: { imageIndex: index, imageUrl: articleImages.value[index] },
+  })
+}
+
+const handleDetailImageLoad = (index: number) => {
+  logger.debug('Imagen de detalle cargada correctamente', {
+    context: 'SummaryView',
+    data: { imageIndex: index },
+  })
+}
+
 // Log cuando el componente se desmonta
 onUnmounted(() => {
   logger.info('Componente SummaryView desmontado', {
@@ -188,6 +293,8 @@ onUnmounted(() => {
       finalTweetCount: tweets.value.length,
       hadError: !!errorMessage.value,
       imagesProcessed: articleImages.value.length,
+      imagesUsed: tweets.value.filter((t) => t.imageUrl).length,
+      imageCoverage: imageStats.value.coverage,
     },
   })
 })

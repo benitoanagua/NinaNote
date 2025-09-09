@@ -20,6 +20,9 @@
             {{ $t('summary.tweetsCount', { count: tweets.length }) }}
             <span class="text-primary"> • {{ getThreadSizeLabel() }}</span>
           </p>
+          <p v-if="availableImages.length > 0" class="text-xs text-primary mt-1">
+            📸 {{ availableImages.length }} imágenes disponibles
+          </p>
         </div>
       </div>
     </div>
@@ -88,51 +91,106 @@
             {{ tweet.content }}
           </div>
 
-          <!-- Mostrar imagen scrapeada si existe -->
-          <div v-if="scrapedImages[index]" class="mt-3">
-            <img
-              :src="scrapedImages[index]"
-              :alt="`Imagen scrapeada para tweet ${index + 1}`"
-              class="rounded-lg w-full h-48 object-cover shadow-sm"
-              @error="handleScrapedImageError(index)"
-            />
-            <p class="text-xs text-onSurfaceVariant mt-1 text-center">
-              Imagen scrapeada {{ index + 1 }} de {{ tweets.length }}
-            </p>
+          <!-- Sección de imágenes -->
+          <div class="mt-3 space-y-2">
+            <!-- Mostrar imagen scrapeada si existe -->
+            <div v-if="scrapedImages[index]" class="relative">
+              <img
+                :src="normalizeImageUrl(scrapedImages[index])"
+                :alt="`Imagen scrapeada para tweet ${index + 1}`"
+                class="rounded-lg w-full h-48 object-cover shadow-sm"
+                @error="handleScrapedImageError(index)"
+              />
+              <p class="text-xs text-onSurfaceVariant mt-1 text-center">
+                Imagen scrapeada {{ index + 1 }} de {{ tweets.length }}
+              </p>
+            </div>
+
+            <!-- Mostrar imagen personalizada si existe -->
+            <div v-if="tweet.imageUrl" class="relative">
+              <img
+                :src="normalizeImageUrl(tweet.imageUrl)"
+                :alt="`Imagen para tweet ${index + 1}`"
+                class="rounded-lg w-full h-48 object-cover shadow-sm"
+                @error="handleImageError(tweet, index)"
+              />
+              <p class="text-xs text-onSurfaceVariant mt-1 text-center">
+                Imagen personalizada {{ index + 1 }} de {{ tweets.length }}
+              </p>
+            </div>
+
+            <!-- Selector de imágenes disponibles -->
+            <div v-if="!tweet.imageUrl && availableImages.length > 0" class="mt-2">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm text-onSurfaceVariant">Imágenes disponibles:</span>
+                <button
+                  @click="toggleImageSelector(index)"
+                  class="text-xs text-primary hover:text-primary/80"
+                >
+                  {{ showImageSelector === index ? 'Ocultar' : 'Mostrar' }}
+                </button>
+              </div>
+
+              <div
+                v-if="showImageSelector === index"
+                class="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto"
+              >
+                <div
+                  v-for="(img, imgIndex) in availableImages"
+                  :key="imgIndex"
+                  class="cursor-pointer border-2 rounded-lg transition-all"
+                  :class="{
+                    'border-primary': selectedImageIndex === imgIndex,
+                    'border-outlineVariant': selectedImageIndex !== imgIndex,
+                  }"
+                  @click="selectImage(index, img, imgIndex)"
+                >
+                  <img
+                    :src="normalizeImageUrl(img)"
+                    :alt="`Imagen ${imgIndex + 1}`"
+                    class="w-full h-16 object-cover rounded-md"
+                    @error="handleAvailableImageError(imgIndex)"
+                  />
+                </div>
+              </div>
+
+              <div v-if="showImageSelector === index" class="mt-2 flex gap-2">
+                <button
+                  @click="applySelectedImage(index)"
+                  :disabled="selectedImageIndex === null"
+                  class="px-3 py-1 text-sm bg-primary text-onPrimary rounded-lg disabled:opacity-50 transition-colors"
+                >
+                  Aplicar imagen
+                </button>
+                <button
+                  @click="cancelImageSelection"
+                  class="px-3 py-1 text-sm text-onSurfaceVariant rounded-lg border border-outlineVariant transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+
+            <!-- Botón para agregar imagen URL personalizada -->
+            <div v-if="!tweet.imageUrl" class="mt-2">
+              <button
+                @click="showImageInput(index)"
+                class="px-3 py-2 text-sm bg-surfaceContainerHighest text-onSurfaceVariant rounded-lg hover:bg-surfaceContainerHighest hover:text-onSurface transition-colors flex items-center"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                {{ availableImages.length > 0 ? 'Otra imagen' : 'Agregar imagen' }}
+              </button>
+            </div>
           </div>
 
-          <!-- Mostrar imagen personalizada si existe -->
-          <div v-if="tweet.imageUrl" class="mt-3">
-            <img
-              :src="tweet.imageUrl"
-              :alt="`Imagen para tweet ${index + 1}`"
-              class="rounded-lg w-full h-48 object-cover shadow-sm"
-              @error="handleImageError(tweet, index)"
-            />
-            <p class="text-xs text-onSurfaceVariant mt-1 text-center">
-              Imagen personalizada {{ index + 1 }} de {{ tweets.length }}
-            </p>
-          </div>
-
-          <!-- Botón para agregar imagen si no hay -->
-          <div v-if="!tweet.imageUrl" class="mt-3">
-            <button
-              @click="showImageInput(index)"
-              class="px-3 py-2 text-sm bg-surfaceContainerHighest text-onSurfaceVariant rounded-lg hover:bg-surfaceContainerHighest hover:text-onSurface transition-colors flex items-center"
-            >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              Agregar imagen
-            </button>
-          </div>
-
-          <!-- Input para URL de imagen -->
+          <!-- Input para URL de imagen personalizada -->
           <div v-if="showImageInputIndex === index" class="mt-3 space-y-2">
             <input
               v-model="imageUrlInput"
@@ -220,6 +278,9 @@
           <p class="text-onSurfaceVariant text-sm">
             Copia todo el hilo para publicarlo donde prefieras
           </p>
+          <p v-if="availableImages.length > 0" class="text-xs text-primary mt-1">
+            📸 {{ availableImages.length }} imágenes disponibles para usar
+          </p>
         </div>
       </div>
 
@@ -270,7 +331,10 @@
             Usa el botón de compartir (🐦) en cada tweet para publicarlo individualmente en Twitter
           </li>
           <li>Usa 'Copiar Hilo Completo' para pegar todo el hilo en otras aplicaciones</li>
-          <li>Agrega imágenes usando el botón 'Agregar imagen' en cada tweet</li>
+          <li v-if="availableImages.length > 0">
+            Selecciona imágenes de las disponibles usando el selector en cada tweet
+          </li>
+          <li>Agrega imágenes personalizadas usando el botón 'Agregar imagen'</li>
         </ol>
       </div>
     </div>
@@ -278,8 +342,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { ThreadTweet } from '@/core/types'
+import { logger } from '@/utils/logger'
 
 interface Props {
   tweets: ThreadTweet[]
@@ -295,14 +360,72 @@ const emit = defineEmits<{
   tweetsUpdated: [tweets: ThreadTweet[]]
 }>()
 
+// Función para validar imágenes - DEFINIDA AL INICIO
+const isValidImageUrl = (url: string): boolean => {
+  if (!url) return false
+  if (url.startsWith('data:image/')) return true
+  if (url.startsWith('blob:')) return true
+
+  try {
+    const parsedUrl = new URL(url)
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.svg']
+    const hasImageExtension = validExtensions.some((ext) =>
+      parsedUrl.pathname.toLowerCase().includes(ext),
+    )
+
+    // También aceptar URLs que contengan términos comunes de imágenes
+    const hasImageIndicator =
+      /\.(jpg|jpeg|png|gif|webp|avif|svg)/i.test(url) ||
+      /\/images?\//i.test(url) ||
+      /\/media\//i.test(url) ||
+      /\/img\//i.test(url)
+
+    return hasImageExtension || hasImageIndicator
+  } catch {
+    // Si no es una URL válida, verificar si parece una ruta de imagen
+    return /\.(jpg|jpeg|png|gif|webp|avif|svg)(\?.*)?$/i.test(url)
+  }
+}
+
+// Función para normalizar URLs de imágenes
+const normalizeImageUrl = (url: string): string => {
+  if (!url) return url
+
+  // Si la URL ya es absoluta, devolverla tal cual
+  if (url.startsWith('http')) return url
+
+  // Si comienza con //, agregar https:
+  if (url.startsWith('//')) return `https:${url}`
+
+  // Si es una ruta relativa, intentar construir una URL absoluta
+  if (url.startsWith('/')) {
+    // Intentar obtener el dominio de las imágenes scrapeadas
+    const baseUrl = props.scrapedImages.find((img) => img && img.startsWith('http'))
+    if (baseUrl) {
+      try {
+        const parsedUrl = new URL(baseUrl)
+        return `${parsedUrl.origin}${url}`
+      } catch {
+        return url
+      }
+    }
+  }
+
+  return url
+}
+
 // Estado para manejar imágenes
 const showImageInputIndex = ref<number | null>(null)
+const showImageSelector = ref<number | null>(null)
 const imageUrlInput = ref('')
+const selectedImageIndex = ref<number | null>(null)
 const message = ref<string>('')
+const selectedImageForTweet = ref<Record<number, string>>({})
 
-// Computed para mapear imágenes scrapeadas a tweets
-const scrapedImages = computed(() => {
-  return props.scrapedImages || []
+const availableImages = computed(() => {
+  return props.scrapedImages
+    .filter((img) => img && isValidImageUrl(img))
+    .map((img) => normalizeImageUrl(img))
 })
 
 const messageClass = computed(() => {
@@ -311,10 +434,74 @@ const messageClass = computed(() => {
     : 'bg-errorContainer/30 text-error border border-errorContainer'
 })
 
+// Log de imágenes disponibles
+watch(
+  availableImages,
+  (newImages) => {
+    if (newImages.length > 0) {
+      console.log('📸 Imágenes disponibles para tweets:', newImages)
+      logger.info('Imágenes scrapeadas disponibles para asignar', {
+        context: 'ThreadPreview',
+        data: {
+          count: newImages.length,
+          images: newImages.slice(0, 5).map((img, index) => ({
+            index,
+            url: img.substring(0, 40) + (img.length > 40 ? '...' : ''),
+            valid: isValidImageUrl(img),
+          })),
+        },
+      })
+    }
+  },
+  { immediate: true },
+)
+
 // Métodos para manejar imágenes
+const toggleImageSelector = (index: number) => {
+  showImageSelector.value = showImageSelector.value === index ? null : index
+  selectedImageIndex.value = null
+}
+
+const selectImage = (tweetIndex: number, imageUrl: string, imgIndex: number) => {
+  selectedImageForTweet.value[tweetIndex] = imageUrl
+  selectedImageIndex.value = imgIndex
+}
+
+const applySelectedImage = (index: number) => {
+  if (selectedImageForTweet.value[index]) {
+    const normalizedUrl = normalizeImageUrl(selectedImageForTweet.value[index])
+    const updatedTweets = [...props.tweets]
+    updatedTweets[index] = {
+      ...updatedTweets[index],
+      imageUrl: normalizedUrl,
+    }
+    emit('tweetsUpdated', updatedTweets)
+    showImageSelector.value = null
+    selectedImageIndex.value = null
+    delete selectedImageForTweet.value[index]
+    message.value = '✅ Imagen aplicada correctamente'
+    clearMessageAfterDelay()
+
+    logger.info('Imagen aplicada a tweet', {
+      context: 'ThreadPreview',
+      data: {
+        tweetIndex: index,
+        imageUrl: normalizedUrl.substring(0, 40) + '...',
+      },
+    })
+  }
+}
+
+const cancelImageSelection = () => {
+  showImageSelector.value = null
+  selectedImageIndex.value = null
+  selectedImageForTweet.value = {}
+}
+
 const showImageInput = (index: number) => {
   showImageInputIndex.value = index
   imageUrlInput.value = ''
+  showImageSelector.value = null
 }
 
 const cancelImageInput = () => {
@@ -323,29 +510,27 @@ const cancelImageInput = () => {
 }
 
 const saveImageUrl = (index: number) => {
-  if (isValidImageUrl(imageUrlInput.value)) {
+  const normalizedUrl = normalizeImageUrl(imageUrlInput.value)
+  if (isValidImageUrl(normalizedUrl)) {
     const updatedTweets = [...props.tweets]
     updatedTweets[index] = {
       ...updatedTweets[index],
-      imageUrl: imageUrlInput.value,
+      imageUrl: normalizedUrl,
     }
     emit('tweetsUpdated', updatedTweets)
     showImageInputIndex.value = null
     imageUrlInput.value = ''
     message.value = '✅ Imagen agregada correctamente'
     clearMessageAfterDelay()
-  }
-}
 
-const isValidImageUrl = (url: string): boolean => {
-  if (!url) return false
-  // Validar URL de imagen
-  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif']
-  return (
-    imageExtensions.some((ext) => url.toLowerCase().includes(ext)) ||
-    url.startsWith('data:image/') ||
-    url.startsWith('blob:')
-  )
+    logger.info('Imagen personalizada agregada', {
+      context: 'ThreadPreview',
+      data: {
+        tweetIndex: index,
+        imageUrl: normalizedUrl.substring(0, 40) + '...',
+      },
+    })
+  }
 }
 
 const shareSingleTweet = (index: number) => {
@@ -365,6 +550,14 @@ const shareSingleTweet = (index: number) => {
     '_blank',
     'width=550,height=420,menubar=no,toolbar=no,resizable=yes,scrollbars=yes',
   )
+
+  logger.info('Tweet compartido en Twitter', {
+    context: 'ThreadPreview',
+    data: {
+      tweetIndex: index,
+      hasImage: !!tweet.imageUrl,
+    },
+  })
 }
 
 const shareFirstTweet = () => {
@@ -381,9 +574,19 @@ const copySingleTweet = async (index: number) => {
     await navigator.clipboard.writeText(tweet.content)
     message.value = '✅ Tweet copiado al portapapeles'
     clearMessageAfterDelay()
+
+    logger.info('Tweet copiado al portapapeles', {
+      context: 'ThreadPreview',
+      data: { tweetIndex: index },
+    })
   } catch (error) {
     message.value = '❌ Error al copiar el tweet'
     clearMessageAfterDelay()
+
+    logger.error('Error al copiar tweet', {
+      context: 'ThreadPreview',
+      data: error,
+    })
   }
 }
 
@@ -398,25 +601,80 @@ const copyFullThreadToClipboard = async () => {
     await navigator.clipboard.writeText(threadText)
     message.value = '✅ Hilo completo copiado al portapapeles'
     clearMessageAfterDelay()
+
+    logger.info('Hilo completo copiado', {
+      context: 'ThreadPreview',
+      data: { tweetCount: props.tweets.length },
+    })
   } catch (error) {
     message.value = '❌ Error al copiar el hilo'
     clearMessageAfterDelay()
+
+    logger.error('Error al copiar hilo completo', {
+      context: 'ThreadPreview',
+      data: error,
+    })
   }
 }
 
 const handleImageError = async (tweet: ThreadTweet, index: number) => {
   console.warn(`Error loading image for tweet ${index + 1}`, tweet.imageUrl)
-  // Simplemente quitamos la imagen si hay error
-  const updatedTweets = [...props.tweets]
-  updatedTweets[index] = {
-    ...updatedTweets[index],
-    imageUrl: '',
+  logger.warn('Error cargando imagen de tweet', {
+    context: 'ThreadPreview',
+    data: {
+      tweetIndex: index,
+      imageUrl: tweet.imageUrl,
+      normalizedUrl: normalizeImageUrl(tweet.imageUrl || ''),
+    },
+  })
+
+  // Intentar con la URL normalizada si es diferente
+  const normalizedUrl = normalizeImageUrl(tweet.imageUrl || '')
+  if (normalizedUrl !== tweet.imageUrl) {
+    logger.info('Intentando con URL normalizada', {
+      context: 'ThreadPreview',
+      data: { original: tweet.imageUrl, normalized: normalizedUrl },
+    })
+
+    const updatedTweets = [...props.tweets]
+    updatedTweets[index] = {
+      ...updatedTweets[index],
+      imageUrl: normalizedUrl,
+    }
+    emit('tweetsUpdated', updatedTweets)
+  } else {
+    // Si ya está normalizada y falla, quitar la imagen
+    const updatedTweets = [...props.tweets]
+    updatedTweets[index] = {
+      ...updatedTweets[index],
+      imageUrl: '',
+    }
+    emit('tweetsUpdated', updatedTweets)
   }
-  emit('tweetsUpdated', updatedTweets)
 }
 
 const handleScrapedImageError = (index: number) => {
   console.warn(`Error loading scraped image for tweet ${index + 1}`)
+  logger.warn('Error cargando imagen scrapeada', {
+    context: 'ThreadPreview',
+    data: {
+      imageIndex: index,
+      imageUrl: props.scrapedImages[index],
+      normalizedUrl: normalizeImageUrl(props.scrapedImages[index]),
+    },
+  })
+}
+
+const handleAvailableImageError = (imgIndex: number) => {
+  console.warn(`Error loading available image ${imgIndex + 1}`)
+  logger.warn('Error cargando imagen disponible', {
+    context: 'ThreadPreview',
+    data: {
+      imageIndex: imgIndex,
+      imageUrl: availableImages.value[imgIndex],
+      normalizedUrl: normalizeImageUrl(availableImages.value[imgIndex]),
+    },
+  })
 }
 
 const getThreadSizeLabel = () => {

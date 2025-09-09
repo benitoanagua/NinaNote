@@ -38,6 +38,27 @@ export const useScraper = () => {
 
       const content = await scrapingService.scrapeContent(url)
 
+      // Log detallado de imágenes encontradas
+      if (content.images && content.images.length > 0) {
+        logger.info('Images found during scraping', {
+          context: 'useScraper',
+          data: {
+            totalImages: content.images.length,
+            imageUrls: content.images.slice(0, 5).map((img) => img.substring(0, 50) + '...'),
+            hasMainImage: !!content.image,
+            imagesSample: content.images.slice(0, 3).map((img, index) => ({
+              index,
+              url: img.substring(0, 40) + (img.length > 40 ? '...' : ''),
+              length: img.length,
+            })),
+          },
+        })
+      } else {
+        logger.info('No images found during scraping', {
+          context: 'useScraper',
+        })
+      }
+
       logger.success('URL scraped successfully', {
         context: 'useScraper',
         data: {
@@ -160,6 +181,10 @@ export const useScraper = () => {
         data: {
           imageCount: images.length,
           hasImages: images.length > 0,
+          imagesSample: images.slice(0, 3).map((img, index) => ({
+            index,
+            url: img.substring(0, 40) + (img.length > 40 ? '...' : ''),
+          })),
         },
       })
 

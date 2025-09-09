@@ -1,10 +1,11 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useGoogleGenAI } from './useGoogleGenAI'
 import { useScraper } from './useScraper'
 import { useThreadHistory } from './useThreadHistory'
 import type { ThreadTweet } from '@/core/types'
 import { logger, handleError, translateError } from '@/utils/logger'
+import { isValidImageUrl, logImageDetails, getImageAssignmentStats } from '@/utils/imageUtils'
 
 export const useArticleProcessor = () => {
   const route = useRoute()
@@ -33,6 +34,32 @@ export const useArticleProcessor = () => {
     hasError: !!errorMessage.value,
     hasImages: articleImages.value.length > 0,
   }))
+
+  // Log de imágenes cuando cambian
+  watch(articleImages, (newImages) => {
+    if (newImages.length > 0) {
+      logImageDetails(newImages, 'ArticleProcessor')
+
+      // Log más detallado para debugging
+      logger.debug('Detalles completos de imágenes scrapeadas', {
+        context: 'ArticleProcessor',
+        data: {
+          images: newImages.map((img, idx) => ({
+            index: idx,
+            url: img.substring(0, 50) + (img.length > 50 ? '...' : ''),
+            length: img.length,
+            valid: isValidImageUrl(img),
+          })),
+          mainImage: newImages[0] || 'No disponible',
+          validImages: newImages.filter((img) => isValidImageUrl(img)).length,
+        },
+      })
+    } else {
+      logger.info('No se encontraron imágenes en el artículo', {
+        context: 'ArticleProcessor',
+      })
+    }
+  })
 
   // Métodos
   const loadArticle = async () => {
@@ -75,59 +102,64 @@ export const useArticleProcessor = () => {
     articleContent.value = contentResult.content
     articleImages.value = contentResult.images || []
 
-    logger.success('Contenido extraído exitosamente', {
-      context: 'ArticleProcessor',
-      data: {
-        contentLength: contentResult.content.length,
-        title: contentResult.title,
-        imageCount: contentResult.images?.length || 0,
-        imagesSample:
-          contentResult.images
-            ?.slice(0, 3)
-            .map((img) => img.substring(0, 30) + (img.length > 30 ? '...' : '')) || [],
-      },
-    })
-
-    // Validar longitud mínima
-    validateContentLength(contentResult.content.length)
+    // Log detallado de imágenes
+    if (contentResult.images && contentResult.images.length > 0) {
+      logger.info('Resumen de imágenes del artículo', {
+        context: 'ArticleProcessor',
+        data: {
+          totalImages: contentResult.images.length,
+          validImages: contentResult.images.filter((img) => isValidImageUrl(img)).length,
+          imageSample: contentResult.images
+            .slice(0, 3)
+            .map((img) => img.substring(0, 40) + (img.length > 40 ? '...' : '')),
+        },
+      })
+    }
 
     // 2. Generar hilo con IA
     const generatedTweets = await generateThread(contentResult.content)
 
-    // 3. Asignar imágenes scrapeadas a los tweets (solo si hay imágenes disponibles)
+    // 3. Asignar imágenes scrapeadas a los tweets de manera inteligente
     const tweetsWithImages = assignImagesToTweets(generatedTweets, articleImages.value)
 
     tweets.value = tweetsWithImages
 
-    logger.success('Hilo de Twitter generado exitosamente', {
+    // Log de asignación de imágenes
+    const imageStats = getImageAssignmentStats(tweetsWithImages, articleImages.value)
+    logger.info('Asignación de imágenes completada', {
       context: 'ArticleProcessor',
-      data: {
-        tweetCount: tweetsWithImages.length,
-        totalCharacters: tweetsWithImages.reduce((sum, t) => sum + t.charCount, 0),
-        tweetsWithImages: tweetsWithImages.filter((t) => t.imageUrl && t.imageUrl !== '').length,
-        imagesAssigned: articleImages.value.length,
-      },
+      data: imageStats,
     })
 
     // 4. Guardar en historial
     await saveToHistory(url, contentResult.title, tweetsWithImages)
-
-    logger.info('Procesamiento completado exitosamente', {
-      context: 'ArticleProcessor',
-      data: processStats.value,
-    })
   }
 
   const assignImagesToTweets = (tweets: ThreadTweet[], images: string[]): ThreadTweet[] => {
-    if (images.length === 0) {
+    const validImages = images.filter((img) => isValidImageUrl(img))
+
+    if (validImages.length === 0) {
+      logger.info('No hay imágenes válidas para asignar a los tweets', {
+        context: 'ArticleProcessor',
+      })
       return tweets.map((tweet) => ({ ...tweet, imageUrl: '' }))
     }
 
-    return tweets.map((tweet, index) => ({
-      ...tweet,
-      // Asignar imagen solo si existe en el array de imágenes scrapeadas
-      imageUrl: images[index] || '',
-    }))
+    logger.info(`Asignando ${validImages.length} imágenes a ${tweets.length} tweets`, {
+      context: 'ArticleProcessor',
+    })
+
+    // Estrategia inteligente de asignación - distribuir imágenes equitativamente
+    return tweets.map((tweet, index) => {
+      // Asignar imagen basado en la posición del tweet (round-robin)
+      const imageIndex = index % validImages.length
+      const imageUrl = validImages[imageIndex] || ''
+
+      return {
+        ...tweet,
+        imageUrl,
+      }
+    })
   }
 
   const validateContentLength = (contentLength: number) => {
@@ -151,6 +183,7 @@ export const useArticleProcessor = () => {
           tweetCount: tweets.length,
           title: title.substring(0, 20) + (title.length > 20 ? '...' : ''),
           imagesInThread: tweets.filter((t) => t.imageUrl).length,
+          totalImages: articleImages.value.length,
         },
       })
     } else {
@@ -184,12 +217,14 @@ export const useArticleProcessor = () => {
 
   const handleTweetsUpdated = (updatedTweets: ThreadTweet[]) => {
     tweets.value = updatedTweets
+
+    const imageStats = getImageAssignmentStats(updatedTweets, articleImages.value)
     logger.info('Tweets actualizados por el usuario', {
       context: 'ArticleProcessor',
       data: {
         tweetCount: updatedTweets.length,
         longTweets: updatedTweets.filter((t) => t.charCount > 280).length,
-        tweetsWithImages: updatedTweets.filter((t) => t.imageUrl && t.imageUrl !== '').length,
+        ...imageStats,
       },
     })
   }
@@ -206,16 +241,7 @@ export const useArticleProcessor = () => {
 
   // Función para obtener estadísticas detalladas de imágenes
   const getImageStats = () => {
-    const tweetsWithImages = tweets.value.filter((t) => t.imageUrl && t.imageUrl !== '')
-    const uniqueImageUrls = new Set(tweetsWithImages.map((t) => t.imageUrl))
-
-    return {
-      totalTweets: tweets.value.length,
-      tweetsWithImages: tweetsWithImages.length,
-      uniqueImages: uniqueImageUrls.size,
-      scrapedImages: articleImages.value.length,
-      imageCoverage: Math.round((tweetsWithImages.length / tweets.value.length) * 100),
-    }
+    return getImageAssignmentStats(tweets.value, articleImages.value)
   }
 
   // Función para reasignar imágenes a los tweets
@@ -224,12 +250,10 @@ export const useArticleProcessor = () => {
     const updatedTweets = assignImagesToTweets(tweets.value, newImages)
     tweets.value = updatedTweets
 
+    const imageStats = getImageAssignmentStats(updatedTweets, newImages)
     logger.info('Imágenes reasignadas a los tweets', {
       context: 'ArticleProcessor',
-      data: {
-        newImagesCount: newImages.length,
-        tweetsUpdated: updatedTweets.filter((t) => t.imageUrl).length,
-      },
+      data: imageStats,
     })
   }
 

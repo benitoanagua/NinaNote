@@ -25,6 +25,12 @@
               <div class="text-2xl font-semibold text-tertiary">{{ threadsWithImages }}</div>
               <div class="text-sm text-onSurfaceVariant">Con imágenes</div>
             </div>
+            <div class="text-center">
+              <div class="text-2xl font-semibold text-primaryContainer">
+                {{ totalImages }}
+              </div>
+              <div class="text-sm text-onSurfaceVariant">Imágenes totales</div>
+            </div>
           </div>
         </div>
       </div>
@@ -87,6 +93,12 @@
                 >
                   {{ formatContentLength(thread) }}
                 </span>
+                <span
+                  v-if="getImageCoverage(thread) > 0"
+                  class="text-xs bg-tertiaryContainer text-onTertiaryContainer px-2 py-1 rounded-full"
+                >
+                  {{ getImageCoverage(thread) }}% con imágenes
+                </span>
               </div>
             </div>
             <button
@@ -122,20 +134,65 @@
                     {{ $t('summary.charCount', { count: tweet.charCount }) }}
                   </div>
                 </div>
-                <div v-if="tweet.imageUrl" class="text-xs text-primary">📸 Con imagen</div>
+                <div
+                  v-if="tweet.imageUrl && isValidImageUrl(tweet.imageUrl)"
+                  class="text-xs text-primary flex items-center"
+                >
+                  <span class="mr-1">📸</span> Con imagen
+                </div>
+                <div v-else-if="!tweet.imageUrl" class="text-xs text-onSurfaceVariant/60">
+                  Sin imagen
+                </div>
+                <div v-else class="text-xs text-error/60">⚠️ Imagen inválida</div>
               </div>
               <p class="text-onSurface text-sm leading-relaxed whitespace-pre-wrap">
                 {{ tweet.content }}
               </p>
 
-              <!-- Mostrar imagen si existe -->
-              <div v-if="tweet.imageUrl" class="mt-3">
+              <!-- Mostrar imagen si existe con mejor feedback -->
+              <div v-if="tweet.imageUrl && isValidImageUrl(tweet.imageUrl)" class="mt-3 relative">
                 <img
-                  :src="tweet.imageUrl"
+                  :src="normalizeImageUrl(tweet.imageUrl)"
                   :alt="`Imagen para tweet ${index + 1}`"
                   class="rounded-lg w-full h-32 object-cover shadow-sm"
                   @error="handleImageError(thread.id, index)"
+                  @load="handleImageLoad(thread.id, index)"
                 />
+                <div
+                  class="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded"
+                >
+                  📸
+                </div>
+                <p class="text-xs text-onSurfaceVariant/60 mt-1 text-center">
+                  Imagen {{ index + 1 }} de {{ thread.tweets.length }}
+                </p>
+              </div>
+
+              <!-- Indicador de imagen inválida -->
+              <div
+                v-else-if="tweet.imageUrl && !isValidImageUrl(tweet.imageUrl)"
+                class="mt-2 p-2 bg-errorContainer/20 rounded-lg"
+              >
+                <p class="text-error text-xs flex items-center">
+                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.502 0L4.732 15.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                  Imagen no disponible o URL inválida
+                </p>
+                <p class="text-error text-xs mt-1">
+                  URL: {{ tweet.imageUrl.substring(0, 50)
+                  }}{{ tweet.imageUrl.length > 50 ? '...' : '' }}
+                </p>
+              </div>
+
+              <!-- Indicador si no hay imagen -->
+              <div v-else class="mt-2 text-xs text-onSurfaceVariant/60">
+                ℹ️ Este tweet no tiene imagen asignada
               </div>
             </div>
           </div>
@@ -147,7 +204,7 @@
               <div class="flex items-center space-x-2">
                 <button
                   @click="copyThread(thread)"
-                  class="px-3 py-1 text-sm bg-surfaceContainerHighest text-onSurfaceVariant rounded-lg hover:bg-surfaceContainerHighest hover:text-onSurface transition-colors"
+                  class="px-3 py-1 text-sm bg-surfaceContainerHighest text-onSurfaceVariant rounded-lg hover:bg-surfaceContainerHighest hover:text-onSurface transition-colors flex items-center"
                   title="Copiar hilo"
                 >
                   <svg
@@ -167,7 +224,7 @@
                 </button>
                 <button
                   @click="shareThread(thread)"
-                  class="px-3 py-1 text-sm bg-surfaceContainerHighest text-onSurfaceVariant rounded-lg hover:bg-surfaceContainerHighest hover:text-onSurface transition-colors"
+                  class="px-3 py-1 text-sm bg-surfaceContainerHighest text-onSurfaceVariant rounded-lg hover:bg-surfaceContainerHighest hover:text-onSurface transition-colors flex items-center"
                   title="Compartir primer tweet"
                 >
                   <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 24 24">
@@ -176,6 +233,27 @@
                     />
                   </svg>
                   Compartir
+                </button>
+                <button
+                  v-if="hasImages(thread)"
+                  @click="exportImages(thread)"
+                  class="px-3 py-1 text-sm bg-surfaceContainerHighest text-onSurfaceVariant rounded-lg hover:bg-surfaceContainerHighest hover:text-onSurface transition-colors flex items-center"
+                  title="Exportar URLs de imágenes"
+                >
+                  <svg
+                    class="w-4 h-4 inline mr-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                    />
+                  </svg>
+                  Imágenes
                 </button>
               </div>
             </div>
@@ -195,14 +273,74 @@ import { logger } from '@/utils/logger'
 const sessionStore = useSessionStore()
 const { t } = useI18n()
 
+// Función para validar imágenes
+const isValidImageUrl = (url: string): boolean => {
+  if (!url) return false
+  if (url.startsWith('data:image/')) return true
+  if (url.startsWith('blob:')) return true
+
+  try {
+    const parsedUrl = new URL(url)
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.svg']
+    const hasImageExtension = validExtensions.some((ext) =>
+      parsedUrl.pathname.toLowerCase().includes(ext),
+    )
+
+    const hasImageIndicator =
+      /\.(jpg|jpeg|png|gif|webp|avif|svg)/i.test(url) ||
+      /\/images?\//i.test(url) ||
+      /\/media\//i.test(url) ||
+      /\/img\//i.test(url)
+
+    return hasImageExtension || hasImageIndicator
+  } catch {
+    return /\.(jpg|jpeg|png|gif|webp|avif|svg)(\?.*)?$/i.test(url)
+  }
+}
+
+// Función para normalizar URLs de imágenes
+const normalizeImageUrl = (url: string): string => {
+  if (!url) return url
+
+  if (url.startsWith('http')) return url
+  if (url.startsWith('//')) return `https:${url}`
+
+  if (url.startsWith('/')) {
+    // Intentar obtener el dominio del hilo
+    const thread = sessionStore.savedThreads.find((t) =>
+      t.tweets.some((tweet) => tweet.imageUrl && tweet.imageUrl.includes(url)),
+    )
+    if (thread && thread.url) {
+      try {
+        const parsedUrl = new URL(thread.url)
+        return `${parsedUrl.origin}${url}`
+      } catch {
+        return url
+      }
+    }
+  }
+
+  return url
+}
+
 // Computed properties para estadísticas
 const totalTweets = computed(() => {
   return sessionStore.savedThreads.reduce((total, thread) => total + thread.tweets.length, 0)
 })
 
 const threadsWithImages = computed(() => {
-  return sessionStore.savedThreads.filter((thread) => thread.tweets.some((tweet) => tweet.imageUrl))
-    .length
+  return sessionStore.savedThreads.filter((thread) =>
+    thread.tweets.some((tweet) => tweet.imageUrl && isValidImageUrl(tweet.imageUrl)),
+  ).length
+})
+
+const totalImages = computed(() => {
+  return sessionStore.savedThreads.reduce((total, thread) => {
+    return (
+      total +
+      thread.tweets.filter((tweet) => tweet.imageUrl && isValidImageUrl(tweet.imageUrl)).length
+    )
+  }, 0)
 })
 
 const formatDate = (dateString: string) => {
@@ -216,11 +354,20 @@ const formatDate = (dateString: string) => {
 }
 
 const hasImages = (thread: any) => {
-  return thread.tweets.some((tweet: any) => tweet.imageUrl)
+  return thread.tweets.some((tweet: any) => tweet.imageUrl && isValidImageUrl(tweet.imageUrl))
 }
 
 const countImages = (thread: any) => {
-  return thread.tweets.filter((tweet: any) => tweet.imageUrl).length
+  return thread.tweets.filter((tweet: any) => tweet.imageUrl && isValidImageUrl(tweet.imageUrl))
+    .length
+}
+
+const getImageCoverage = (thread: any) => {
+  const totalTweets = thread.tweets.length
+  const tweetsWithImages = thread.tweets.filter(
+    (tweet: any) => tweet.imageUrl && isValidImageUrl(tweet.imageUrl),
+  ).length
+  return Math.round((tweetsWithImages / totalTweets) * 100)
 }
 
 const formatContentLength = (thread: any) => {
@@ -264,7 +411,7 @@ const shareThread = (thread: any) => {
     const firstTweet = thread.tweets[0]
     let text = firstTweet.content
 
-    if (firstTweet.imageUrl) {
+    if (firstTweet.imageUrl && isValidImageUrl(firstTweet.imageUrl)) {
       text += '\n\n📸 Incluye imagen'
     }
 
@@ -284,10 +431,67 @@ const shareThread = (thread: any) => {
   }
 }
 
-const handleImageError = (threadId: string, tweetIndex: number) => {
-  logger.warn(`Error loading image in history view`, {
+const exportImages = async (thread: any) => {
+  try {
+    const imageUrls = thread.tweets
+      .filter((tweet: any) => tweet.imageUrl && isValidImageUrl(tweet.imageUrl))
+      .map((tweet: any) => normalizeImageUrl(tweet.imageUrl))
+
+    if (imageUrls.length === 0) {
+      alert('No hay imágenes válidas para exportar')
+      return
+    }
+
+    const imageText = imageUrls.join('\n')
+    await navigator.clipboard.writeText(imageText)
+    alert(`✅ ${imageUrls.length} URLs de imágenes copiadas al portapapeles`)
+
+    logger.info('URLs de imágenes exportadas', {
+      context: 'HistoryView',
+      data: { threadId: thread.id, imageCount: imageUrls.length },
+    })
+  } catch (error) {
+    alert('Error al exportar imágenes')
+    logger.error('Error al exportar imágenes', {
+      context: 'HistoryView',
+      data: error,
+    })
+  }
+}
+
+const handleImageLoad = (threadId: string, tweetIndex: number) => {
+  logger.debug('Imagen cargada exitosamente', {
     context: 'HistoryView',
     data: { threadId, tweetIndex },
   })
+}
+
+const handleImageError = async (threadId: string, tweetIndex: number) => {
+  logger.warn('Error loading image in history view', {
+    context: 'HistoryView',
+    data: { threadId, tweetIndex },
+  })
+
+  // Opcional: intentar normalizar la URL
+  const thread = sessionStore.savedThreads.find((t) => t.id === threadId)
+  if (thread && thread.tweets[tweetIndex]) {
+    const tweet = thread.tweets[tweetIndex]
+    const normalizedUrl = normalizeImageUrl(tweet.imageUrl || '')
+
+    if (normalizedUrl !== tweet.imageUrl) {
+      const updatedTweets = [...thread.tweets]
+      updatedTweets[tweetIndex] = {
+        ...updatedTweets[tweetIndex],
+        imageUrl: normalizedUrl,
+      }
+
+      // Actualizar en el store
+      sessionStore.saveThread({
+        url: thread.url,
+        title: thread.title,
+        tweets: updatedTweets,
+      })
+    }
+  }
 }
 </script>
