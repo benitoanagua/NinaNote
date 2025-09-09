@@ -31,6 +31,7 @@ export const useArticleProcessor = () => {
     contentLength: articleContent.value.length,
     imageCount: articleImages.value.length,
     hasError: !!errorMessage.value,
+    hasImages: articleImages.value.length > 0,
   }))
 
   // Métodos
@@ -78,11 +79,12 @@ export const useArticleProcessor = () => {
       context: 'ArticleProcessor',
       data: {
         contentLength: contentResult.content.length,
-        title:
-          contentResult.title.substring(0, 30) + (contentResult.title.length > 30 ? '...' : ''),
+        title: contentResult.title,
         imageCount: contentResult.images?.length || 0,
         imagesSample:
-          contentResult.images?.slice(0, 3).map((img) => img.substring(0, 30) + '...') || [],
+          contentResult.images
+            ?.slice(0, 3)
+            .map((img) => img.substring(0, 30) + (img.length > 30 ? '...' : '')) || [],
       },
     })
 
@@ -92,11 +94,8 @@ export const useArticleProcessor = () => {
     // 2. Generar hilo con IA
     const generatedTweets = await generateThread(contentResult.content)
 
-    // 3. Asignar imágenes scrapeadas a los tweets
-    const tweetsWithImages = generatedTweets.map((tweet, index) => ({
-      ...tweet,
-      imageUrl: articleImages.value[index] || '', // Asignar imagen si existe
-    }))
+    // 3. Asignar imágenes scrapeadas a los tweets (solo si hay imágenes disponibles)
+    const tweetsWithImages = assignImagesToTweets(generatedTweets, articleImages.value)
 
     tweets.value = tweetsWithImages
 
@@ -106,6 +105,7 @@ export const useArticleProcessor = () => {
         tweetCount: tweetsWithImages.length,
         totalCharacters: tweetsWithImages.reduce((sum, t) => sum + t.charCount, 0),
         tweetsWithImages: tweetsWithImages.filter((t) => t.imageUrl && t.imageUrl !== '').length,
+        imagesAssigned: articleImages.value.length,
       },
     })
 
@@ -116,6 +116,18 @@ export const useArticleProcessor = () => {
       context: 'ArticleProcessor',
       data: processStats.value,
     })
+  }
+
+  const assignImagesToTweets = (tweets: ThreadTweet[], images: string[]): ThreadTweet[] => {
+    if (images.length === 0) {
+      return tweets.map((tweet) => ({ ...tweet, imageUrl: '' }))
+    }
+
+    return tweets.map((tweet, index) => ({
+      ...tweet,
+      // Asignar imagen solo si existe en el array de imágenes scrapeadas
+      imageUrl: images[index] || '',
+    }))
   }
 
   const validateContentLength = (contentLength: number) => {
@@ -138,6 +150,7 @@ export const useArticleProcessor = () => {
         data: {
           tweetCount: tweets.length,
           title: title.substring(0, 20) + (title.length > 20 ? '...' : ''),
+          imagesInThread: tweets.filter((t) => t.imageUrl).length,
         },
       })
     } else {
@@ -187,6 +200,37 @@ export const useArticleProcessor = () => {
     articleImages.value = []
     errorMessage.value = ''
     isLoading.value = false
+
+    logger.info('ArticleProcessor reset', { context: 'ArticleProcessor' })
+  }
+
+  // Función para obtener estadísticas detalladas de imágenes
+  const getImageStats = () => {
+    const tweetsWithImages = tweets.value.filter((t) => t.imageUrl && t.imageUrl !== '')
+    const uniqueImageUrls = new Set(tweetsWithImages.map((t) => t.imageUrl))
+
+    return {
+      totalTweets: tweets.value.length,
+      tweetsWithImages: tweetsWithImages.length,
+      uniqueImages: uniqueImageUrls.size,
+      scrapedImages: articleImages.value.length,
+      imageCoverage: Math.round((tweetsWithImages.length / tweets.value.length) * 100),
+    }
+  }
+
+  // Función para reasignar imágenes a los tweets
+  const reassignImages = (newImages: string[]) => {
+    articleImages.value = newImages
+    const updatedTweets = assignImagesToTweets(tweets.value, newImages)
+    tweets.value = updatedTweets
+
+    logger.info('Imágenes reasignadas a los tweets', {
+      context: 'ArticleProcessor',
+      data: {
+        newImagesCount: newImages.length,
+        tweetsUpdated: updatedTweets.filter((t) => t.imageUrl).length,
+      },
+    })
   }
 
   return {
@@ -206,5 +250,7 @@ export const useArticleProcessor = () => {
     retry,
     handleTweetsUpdated,
     reset,
+    getImageStats,
+    reassignImages,
   }
 }

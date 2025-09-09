@@ -63,6 +63,22 @@
                 />
               </svg>
             </button>
+
+            <!-- Botón para copiar tweet individual -->
+            <button
+              @click="copySingleTweet(index)"
+              class="p-2 text-onSurfaceVariant hover:text-primary rounded-full transition-colors"
+              :title="$t('twitter.copyTweet')"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -72,7 +88,20 @@
             {{ tweet.content }}
           </div>
 
-          <!-- Mostrar imagen si existe -->
+          <!-- Mostrar imagen scrapeada si existe -->
+          <div v-if="scrapedImages[index]" class="mt-3">
+            <img
+              :src="scrapedImages[index]"
+              :alt="`Imagen scrapeada para tweet ${index + 1}`"
+              class="rounded-lg w-full h-48 object-cover shadow-sm"
+              @error="handleScrapedImageError(index)"
+            />
+            <p class="text-xs text-onSurfaceVariant mt-1 text-center">
+              Imagen scrapeada {{ index + 1 }} de {{ tweets.length }}
+            </p>
+          </div>
+
+          <!-- Mostrar imagen personalizada si existe -->
           <div v-if="tweet.imageUrl" class="mt-3">
             <img
               :src="tweet.imageUrl"
@@ -81,7 +110,7 @@
               @error="handleImageError(tweet, index)"
             />
             <p class="text-xs text-onSurfaceVariant mt-1 text-center">
-              Imagen {{ index + 1 }} de {{ tweets.length }}
+              Imagen personalizada {{ index + 1 }} de {{ tweets.length }}
             </p>
           </div>
 
@@ -175,19 +204,92 @@
       </svg>
       <p>Esperando generación de contenido...</p>
     </div>
+
+    <!-- Sección de exportación del hilo completo -->
+    <div v-if="tweets.length > 0" class="mt-8 bg-surfaceContainerHigh rounded-xl p-6 shadow-md3">
+      <div class="flex items-center mb-6">
+        <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center mr-3">
+          <svg class="w-5 h-5 text-onPrimary" fill="currentColor" viewBox="0 0 24 24">
+            <path
+              d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+            />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-xl font-semibold text-onSurface">Exportar Hilo</h2>
+          <p class="text-onSurfaceVariant text-sm">
+            Copia todo el hilo para publicarlo donde prefieras
+          </p>
+        </div>
+      </div>
+
+      <!-- Mensajes de estado -->
+      <div v-if="message" class="mb-4 p-4 rounded-lg" :class="messageClass">
+        <p class="text-sm">{{ message }}</p>
+      </div>
+
+      <!-- Botones de acción -->
+      <div class="space-y-4">
+        <!-- Copiar todo el hilo al portapapeles -->
+        <button
+          @click="copyFullThreadToClipboard"
+          :disabled="tweets.length === 0"
+          class="w-full py-3 bg-secondaryContainer text-onSecondaryContainer rounded-xl shadow-md3 hover:shadow-md3-lg disabled:opacity-60 disabled:pointer-events-none transition-all duration-200 font-medium flex items-center justify-center"
+        >
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+            />
+          </svg>
+          Copiar Hilo Completo
+        </button>
+
+        <!-- Compartir primer tweet -->
+        <button
+          @click="shareFirstTweet"
+          :disabled="tweets.length === 0"
+          class="w-full py-3 bg-primary text-onPrimary rounded-xl shadow-md3 hover:shadow-md3-lg disabled:opacity-60 disabled:pointer-events-none transition-all duration-200 font-medium flex items-center justify-center"
+        >
+          <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+            <path
+              d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+            />
+          </svg>
+          Compartir Primer Tweet
+        </button>
+      </div>
+
+      <!-- Instrucciones -->
+      <div class="mt-6 bg-surfaceContainer rounded-lg p-4">
+        <h4 class="text-sm font-medium text-onSurface mb-2">Instrucciones:</h4>
+        <ol class="text-onSurfaceVariant text-sm space-y-1 list-decimal list-inside">
+          <li>
+            Usa el botón de compartir (🐦) en cada tweet para publicarlo individualmente en Twitter
+          </li>
+          <li>Usa 'Copiar Hilo Completo' para pegar todo el hilo en otras aplicaciones</li>
+          <li>Agrega imágenes usando el botón 'Agregar imagen' en cada tweet</li>
+        </ol>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { ThreadTweet } from '@/core/types'
 
 interface Props {
   tweets: ThreadTweet[]
   originalContent: string
+  scrapedImages?: string[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  scrapedImages: () => [],
+})
 
 const emit = defineEmits<{
   tweetsUpdated: [tweets: ThreadTweet[]]
@@ -196,6 +298,18 @@ const emit = defineEmits<{
 // Estado para manejar imágenes
 const showImageInputIndex = ref<number | null>(null)
 const imageUrlInput = ref('')
+const message = ref<string>('')
+
+// Computed para mapear imágenes scrapeadas a tweets
+const scrapedImages = computed(() => {
+  return props.scrapedImages || []
+})
+
+const messageClass = computed(() => {
+  return message.value.includes('✅')
+    ? 'bg-primaryContainer/30 text-primary border border-primaryContainer'
+    : 'bg-errorContainer/30 text-error border border-errorContainer'
+})
 
 // Métodos para manejar imágenes
 const showImageInput = (index: number) => {
@@ -218,6 +332,8 @@ const saveImageUrl = (index: number) => {
     emit('tweetsUpdated', updatedTweets)
     showImageInputIndex.value = null
     imageUrlInput.value = ''
+    message.value = '✅ Imagen agregada correctamente'
+    clearMessageAfterDelay()
   }
 }
 
@@ -236,8 +352,7 @@ const shareSingleTweet = (index: number) => {
   const tweet = props.tweets[index]
   let text = tweet.content
 
-  // Si hay imagen, no podemos incluirla en el intent directo de Twitter
-  // pero podemos mencionar que hay imagen
+  // Si hay imagen, mencionar que hay imagen
   if (tweet.imageUrl) {
     text += '\n\n📸 Incluye imagen'
   }
@@ -252,6 +367,43 @@ const shareSingleTweet = (index: number) => {
   )
 }
 
+const shareFirstTweet = () => {
+  if (props.tweets.length > 0) {
+    shareSingleTweet(0)
+  }
+}
+
+const copySingleTweet = async (index: number) => {
+  if (props.tweets.length === 0) return
+
+  try {
+    const tweet = props.tweets[index]
+    await navigator.clipboard.writeText(tweet.content)
+    message.value = '✅ Tweet copiado al portapapeles'
+    clearMessageAfterDelay()
+  } catch (error) {
+    message.value = '❌ Error al copiar el tweet'
+    clearMessageAfterDelay()
+  }
+}
+
+const copyFullThreadToClipboard = async () => {
+  if (props.tweets.length === 0) return
+
+  try {
+    const threadText = props.tweets
+      .map((tweet, index) => `${index + 1}/${props.tweets.length}\n${tweet.content}`)
+      .join('\n\n---\n\n')
+
+    await navigator.clipboard.writeText(threadText)
+    message.value = '✅ Hilo completo copiado al portapapeles'
+    clearMessageAfterDelay()
+  } catch (error) {
+    message.value = '❌ Error al copiar el hilo'
+    clearMessageAfterDelay()
+  }
+}
+
 const handleImageError = async (tweet: ThreadTweet, index: number) => {
   console.warn(`Error loading image for tweet ${index + 1}`, tweet.imageUrl)
   // Simplemente quitamos la imagen si hay error
@@ -263,10 +415,20 @@ const handleImageError = async (tweet: ThreadTweet, index: number) => {
   emit('tweetsUpdated', updatedTweets)
 }
 
+const handleScrapedImageError = (index: number) => {
+  console.warn(`Error loading scraped image for tweet ${index + 1}`)
+}
+
 const getThreadSizeLabel = () => {
   const count = props.tweets.length
   if (count <= 3) return 'Hilo corto'
   if (count === 4) return 'Hilo medio'
   return 'Hilo extenso'
+}
+
+const clearMessageAfterDelay = () => {
+  setTimeout(() => {
+    message.value = ''
+  }, 3000)
 }
 </script>

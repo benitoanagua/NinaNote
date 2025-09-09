@@ -45,10 +45,44 @@
         </div>
       </div>
 
+      <!-- Estadísticas de procesamiento -->
+      <div
+        v-if="!errorMessage && tweets.length > 0"
+        class="mb-6 bg-surfaceContainerHigh rounded-xl p-4"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-4">
+            <div class="text-center">
+              <div class="text-2xl font-semibold text-primary">{{ tweets.length }}</div>
+              <div class="text-sm text-onSurfaceVariant">Tweets</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-semibold text-secondary">{{ articleImages.length }}</div>
+              <div class="text-sm text-onSurfaceVariant">Imágenes</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-semibold text-tertiary">
+                {{ Math.round((articleContent.length / 1000) * 100) / 100 }}k
+              </div>
+              <div class="text-sm text-onSurfaceVariant">Caracteres</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-sm text-onSurfaceVariant">
+              {{ imageStats.tweetsWithImages }}/{{ tweets.length }} tweets con imágenes
+            </div>
+            <div class="text-xs text-onSurfaceVariant/60">
+              Cobertura: {{ imageStats.imageCoverage }}%
+            </div>
+          </div>
+        </div>
+      </div>
+
       <ThreadPreview
         v-if="!errorMessage && tweets.length > 0"
         :tweets="tweets"
         :original-content="articleContent"
+        :scraped-images="articleImages"
         @tweets-updated="handleTweetsUpdated"
       />
 
@@ -68,8 +102,6 @@
         </svg>
         <p>Preparado para procesar contenido...</p>
       </div>
-
-      <TwitterPublish v-if="!errorMessage && tweets.length > 0" :tweets="tweets" class="mt-8" />
 
       <div class="mt-8 text-center">
         <router-link
@@ -92,30 +124,30 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue'
-import { useSEO } from '@/composables/useSEO'
+import { onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useArticleProcessor } from '@/composables/useArticleProcessor'
 import ThreadPreview from '@/components/ThreadPreview.vue'
-import TwitterPublish from '@/components/TwitterPublish.vue'
 import { logger } from '@/utils/logger'
 
-useSEO({
-  title: 'Resumen generado',
-  description: 'Hilo de Twitter generado desde el artículo.',
-  path: '/summary',
-})
 const route = useRoute()
 const {
   tweets,
   articleContent,
+  articleImages,
   errorMessage,
   isLoading,
   decodedUrl,
   loadArticle,
   retry,
   handleTweetsUpdated,
+  getImageStats,
 } = useArticleProcessor()
+
+// Computed para estadísticas de imágenes
+const imageStats = computed(() => {
+  return getImageStats()
+})
 
 // Watch for URL changes
 watch(
@@ -155,6 +187,7 @@ onUnmounted(() => {
       processed: tweets.value.length > 0,
       finalTweetCount: tweets.value.length,
       hadError: !!errorMessage.value,
+      imagesProcessed: articleImages.value.length,
     },
   })
 })
