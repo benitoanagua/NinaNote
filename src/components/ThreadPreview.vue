@@ -93,19 +93,6 @@
 
           <!-- Sección de imágenes -->
           <div class="mt-3 space-y-2">
-            <!-- Mostrar imagen scrapeada si existe -->
-            <div v-if="scrapedImages[index]" class="relative">
-              <img
-                :src="normalizeImageUrl(scrapedImages[index])"
-                :alt="`Imagen scrapeada para tweet ${index + 1}`"
-                class="rounded-lg w-full h-48 object-cover shadow-sm"
-                @error="handleScrapedImageError(index)"
-              />
-              <p class="text-xs text-onSurfaceVariant mt-1 text-center">
-                Imagen scrapeada {{ index + 1 }} de {{ tweets.length }}
-              </p>
-            </div>
-
             <!-- Mostrar imagen personalizada si existe -->
             <div v-if="tweet.imageUrl" class="relative">
               <img
@@ -115,7 +102,20 @@
                 @error="handleImageError(tweet, index)"
               />
               <p class="text-xs text-onSurfaceVariant mt-1 text-center">
-                Imagen personalizada {{ index + 1 }} de {{ tweets.length }}
+                Imagen {{ index + 1 }} de {{ tweets.length }}
+              </p>
+            </div>
+
+            <!-- Mostrar imagen scrapeada solo si NO hay imagen personalizada -->
+            <div v-else-if="scrapedImages[index]" class="relative">
+              <img
+                :src="normalizeImageUrl(scrapedImages[index])"
+                :alt="`Imagen scrapeada para tweet ${index + 1}`"
+                class="rounded-lg w-full h-48 object-cover shadow-sm"
+                @error="handleScrapedImageError(index)"
+              />
+              <p class="text-xs text-onSurfaceVariant mt-1 text-center">
+                Imagen scrapeada {{ index + 1 }} de {{ tweets.length }}
               </p>
             </div>
 

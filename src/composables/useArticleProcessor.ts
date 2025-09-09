@@ -149,8 +149,13 @@ export const useArticleProcessor = () => {
       context: 'ArticleProcessor',
     })
 
-    // Estrategia inteligente de asignación - distribuir imágenes equitativamente
+    // Asignar imágenes solo si no hay imagen personalizada ya asignada
     return tweets.map((tweet, index) => {
+      // Si el tweet ya tiene una imagen (por ejemplo, de una edición previa), mantenerla
+      if (tweet.imageUrl && isValidImageUrl(tweet.imageUrl)) {
+        return tweet
+      }
+
       // Asignar imagen basado en la posición del tweet (round-robin)
       const imageIndex = index % validImages.length
       const imageUrl = validImages[imageIndex] || ''
