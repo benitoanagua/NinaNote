@@ -26,34 +26,6 @@ export class GoogleGenAIService extends BaseService {
     }
   }
 
-  async getAvailableModels(): Promise<AIModel[]> {
-    try {
-      const models = await this.ai.models.list({ config: { pageSize: 20 } })
-      const available: AIModel[] = []
-
-      for await (const m of models) {
-        available.push({
-          id: m.name!,
-          name: m.displayName || m.name!,
-          provider: 'Google',
-          available: true,
-        })
-      }
-
-      logger.info(`Found ${available.length} available AI models`, { context: 'AI' })
-      return available
-    } catch (error) {
-      logger.error('Failed to get available models', {
-        context: 'AI',
-        data: error,
-      })
-      throw ErrorFactory.ai(
-        'Failed to retrieve available models',
-        error instanceof Error ? error : undefined,
-      )
-    }
-  }
-
   async generateThread(text: string): Promise<ThreadTweet[]> {
     this.logStart('Generating thread with Gemini')
     logger.ai.generating('gemini-2.0-flash')
@@ -96,7 +68,7 @@ export class GoogleGenAIService extends BaseService {
         context: 'AI',
       })
 
-      // Crear tweets SIN imágenes (las imágenes se manejarán externamente)
+      // Crear tweets SIN imágenes
       const tweets = this.createThreadTweets(tweetContents)
 
       this.logSuccess(`Generated ${tweets.length} tweets`)
@@ -113,49 +85,6 @@ export class GoogleGenAIService extends BaseService {
     }
   }
 
-  async regenerateTweet(originalText: string, tweetIndex: number): Promise<string> {
-    this.logStart('Regenerating single tweet')
-    logger.info(`Regenerating tweet ${tweetIndex + 1}`, { context: 'AI' })
-
-    try {
-      const prompt = PromptEngine.compile(PROMPT_TEMPLATES.REGENERATE_TWEET, {
-        content: originalText,
-        tweetIndex: tweetIndex + 1,
-      })
-
-      logger.debug('Sending regeneration prompt to Gemini API', {
-        context: 'AI',
-        data: { promptLength: prompt.length, tweetIndex },
-      })
-
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-2.0-flash',
-        contents: prompt,
-        config: { temperature: 0.9, maxOutputTokens: 150 },
-      })
-
-      const newContent = (response.text ?? '').trim()
-
-      if (!newContent) {
-        throw ErrorFactory.ai('No content received for regenerated tweet')
-      }
-
-      logger.info(`Successfully regenerated tweet ${tweetIndex + 1}`, {
-        context: 'AI',
-        data: { newLength: newContent.length },
-      })
-
-      return newContent
-    } catch (error) {
-      this.logError('Failed to regenerate tweet', error)
-      logger.ai.error(error instanceof Error ? error : new Error(String(error)))
-      throw ErrorFactory.ai(
-        'Failed to regenerate tweet',
-        error instanceof Error ? error : undefined,
-      )
-    }
-  }
-
   private calculateTweetCount(textLength: number): number {
     if (textLength < 800) return 3
     if (textLength > 2000) return 5
@@ -167,7 +96,7 @@ export class GoogleGenAIService extends BaseService {
       .split('\n')
       .map((l) => l.trim())
       .filter((l) => l.length > 0 && !l.startsWith('//') && !l.startsWith('/*'))
-      .map((l) => l.replace(/^\d+[\.\)]\s*/, '')) // Remove numbering like "1.", "2)", etc.
+      .map((l) => l.replace(/^\d+[\.\)]\s*/, ''))
       .filter((l) => l.length > 0)
   }
 
@@ -176,7 +105,7 @@ export class GoogleGenAIService extends BaseService {
       id: `tweet-${Date.now()}-${index}`,
       content,
       charCount: content.length,
-      imageUrl: undefined, // No generar imágenes automáticamente
+      imageUrl: undefined,
     }))
   }
 }

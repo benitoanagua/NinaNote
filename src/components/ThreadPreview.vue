@@ -22,22 +22,6 @@
           </p>
         </div>
       </div>
-
-      <button
-        @click="regenerateAll"
-        :disabled="isRegenerating"
-        class="px-4 py-2 bg-secondaryContainer text-onSecondaryContainer rounded-lg hover:bg-secondaryContainer hover:text-onSecondaryContainer disabled:opacity-60 transition-colors"
-      >
-        <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-          />
-        </svg>
-        {{ $t('thread.regenerateAll') }}
-      </button>
     </div>
 
     <div v-if="tweets.length > 0" class="space-y-4">
@@ -79,51 +63,17 @@
                 />
               </svg>
             </button>
-
-            <button
-              @click="regenerateSingle(index)"
-              :disabled="regeneratingIndex === index"
-              class="p-2 text-onSurfaceVariant hover:text-primary rounded-full transition-colors"
-              :title="$t('summary.regenerateTweet')"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-            </button>
-
-            <button
-              @click="startEdit(index)"
-              class="p-2 text-onSurfaceVariant hover:text-primary rounded-full transition-colors"
-              :title="$t('summary.editTweet')"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M11 5H6a2 2 0 01-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                />
-              </svg>
-            </button>
           </div>
         </div>
 
         <!-- Contenido del tweet -->
         <div class="mb-3">
-          <div
-            v-if="editingIndex !== index"
-            class="text-onSurface leading-relaxed whitespace-pre-wrap mb-3"
-          >
+          <div class="text-onSurface leading-relaxed whitespace-pre-wrap mb-3">
             {{ tweet.content }}
           </div>
 
           <!-- Mostrar imagen si existe -->
-          <div v-if="tweet.imageUrl && editingIndex !== index" class="mt-3">
+          <div v-if="tweet.imageUrl" class="mt-3">
             <img
               :src="tweet.imageUrl"
               :alt="`Imagen para tweet ${index + 1}`"
@@ -136,7 +86,7 @@
           </div>
 
           <!-- Botón para agregar imagen si no hay -->
-          <div v-if="!tweet.imageUrl && editingIndex !== index" class="mt-3">
+          <div v-if="!tweet.imageUrl" class="mt-3">
             <button
               @click="showImageInput(index)"
               class="px-3 py-2 text-sm bg-surfaceContainerHighest text-onSurfaceVariant rounded-lg hover:bg-surfaceContainerHighest hover:text-onSurface transition-colors flex items-center"
@@ -177,44 +127,6 @@
               </button>
             </div>
           </div>
-
-          <div v-else class="space-y-2">
-            <textarea
-              v-model="editingContent"
-              class="input-outlined w-full p-3 bg-surfaceContainerHighest border border-outline rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none text-onSurface transition-colors"
-              :class="{
-                'border-error focus:border-error focus:ring-error/20': editingContent.length > 280,
-              }"
-              rows="3"
-              :placeholder="$t('thread.editPlaceholder')"
-            />
-            <div class="flex items-center justify-between">
-              <span
-                class="text-sm"
-                :class="{
-                  'text-error': editingContent.length > 280,
-                  'text-onSurfaceVariant': editingContent.length <= 280,
-                }"
-              >
-                {{ $t('summary.charCount', { count: editingContent.length }) }}
-              </span>
-              <div class="flex gap-2">
-                <button
-                  @click="cancelEdit"
-                  class="px-3 py-1 text-sm text-onSurfaceVariant hover:text-onSurface rounded-lg transition-colors"
-                >
-                  {{ $t('summary.cancelEdit') }}
-                </button>
-                <button
-                  @click="saveEdit(index)"
-                  :disabled="editingContent.length > 280"
-                  class="px-3 py-1 text-sm bg-primary text-onPrimary rounded-lg hover:bg-primary disabled:opacity-60 transition-colors"
-                >
-                  {{ $t('summary.saveEdit') }}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- Alerta de exceso de caracteres -->
@@ -244,17 +156,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Indicador de carga -->
-        <div
-          v-if="regeneratingIndex === index"
-          class="bg-primaryContainer/30 border border-primaryContainer rounded-lg p-3"
-        >
-          <div class="flex items-center">
-            <div class="animate-spin rounded-full w-4 h-4 border-b-2 border-primary mr-2"></div>
-            <span class="text-primary text-sm">{{ $t('thread.regenerating') }}</span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -274,23 +175,11 @@
       </svg>
       <p>Esperando generación de contenido...</p>
     </div>
-
-    <!-- Estado de carga global -->
-    <div
-      v-if="isRegenerating"
-      class="mt-6 bg-primaryContainer/30 border border-primaryContainer rounded-lg p-4"
-    >
-      <div class="flex items-center justify-center">
-        <div class="animate-spin rounded-full w-5 h-5 border-b-2 border-primary mr-3"></div>
-        <span class="text-primary font-medium">{{ $t('thread.regeneratingAll') }}</span>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { watch, ref } from 'vue'
-import { useThreadManager } from '@/composables/useThreadManager'
+import { ref } from 'vue'
 import type { ThreadTweet } from '@/core/types'
 
 interface Props {
@@ -308,22 +197,6 @@ const emit = defineEmits<{
 const showImageInputIndex = ref<number | null>(null)
 const imageUrlInput = ref('')
 
-// Usar el composable para manejar la lógica
-const {
-  tweets,
-  isRegenerating,
-  regeneratingIndex,
-  editingIndex,
-  editingContent,
-  regenerateAll,
-  regenerateSingle,
-  startEdit,
-  cancelEdit,
-  saveEdit,
-  handleImageError,
-  getThreadSizeLabel,
-} = useThreadManager(props.originalContent, props.tweets)
-
 // Métodos para manejar imágenes
 const showImageInput = (index: number) => {
   showImageInputIndex.value = index
@@ -337,12 +210,12 @@ const cancelImageInput = () => {
 
 const saveImageUrl = (index: number) => {
   if (isValidImageUrl(imageUrlInput.value)) {
-    const updatedTweets = [...tweets.value]
+    const updatedTweets = [...props.tweets]
     updatedTweets[index] = {
       ...updatedTweets[index],
       imageUrl: imageUrlInput.value,
     }
-    tweets.value = updatedTweets
+    emit('tweetsUpdated', updatedTweets)
     showImageInputIndex.value = null
     imageUrlInput.value = ''
   }
@@ -360,7 +233,7 @@ const isValidImageUrl = (url: string): boolean => {
 }
 
 const shareSingleTweet = (index: number) => {
-  const tweet = tweets.value[index]
+  const tweet = props.tweets[index]
   let text = tweet.content
 
   // Si hay imagen, no podemos incluirla en el intent directo de Twitter
@@ -379,12 +252,21 @@ const shareSingleTweet = (index: number) => {
   )
 }
 
-// Emitir actualizaciones cuando los tweets cambien
-watch(
-  tweets,
-  (newTweets) => {
-    emit('tweetsUpdated', newTweets)
-  },
-  { deep: true },
-)
+const handleImageError = async (tweet: ThreadTweet, index: number) => {
+  console.warn(`Error loading image for tweet ${index + 1}`, tweet.imageUrl)
+  // Simplemente quitamos la imagen si hay error
+  const updatedTweets = [...props.tweets]
+  updatedTweets[index] = {
+    ...updatedTweets[index],
+    imageUrl: '',
+  }
+  emit('tweetsUpdated', updatedTweets)
+}
+
+const getThreadSizeLabel = () => {
+  const count = props.tweets.length
+  if (count <= 3) return 'Hilo corto'
+  if (count === 4) return 'Hilo medio'
+  return 'Hilo extenso'
+}
 </script>

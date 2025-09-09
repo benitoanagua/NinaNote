@@ -28,26 +28,6 @@ EDITORIAL:
 Formato de respuesta: devuelve SOLO los tweets, uno por línea, sin numeración ni explicaciones adicionales.
     `.trim(),
   },
-
-  REGENERATE_TWEET: {
-    name: 'regenerate-tweet',
-    version: '1.0',
-    variables: ['content', 'tweetIndex'],
-    template: `
-Regenera SOLO el tweet número {{tweetIndex}} de un hilo sobre este contenido:
-
-{{content}}
-
-Requisitos:
-- Máximo 280 caracteres
-- Diferente perspectiva pero mismo mensaje clave
-- Mantén el tono y estilo profesional
-- Incluye emojis estratégicos
-- {{tweetSpecificRequirements}}
-
-Responde SOLO con el nuevo tweet, sin explicaciones.
-    `.trim(),
-  },
 } as const
 
 export interface PromptVariables {
@@ -69,29 +49,7 @@ export class PromptEngine {
       }
     }
 
-    // Procesamiento especial para requisitos específicos del tweet
-    if (template.name === 'regenerate-tweet') {
-      const tweetIndex = variables.tweetIndex as number
-      const tweetSpecificRequirements = this.getTweetSpecificRequirements(tweetIndex)
-      compiledPrompt = compiledPrompt.replace(
-        '{{tweetSpecificRequirements}}',
-        tweetSpecificRequirements,
-      )
-    }
-
     return compiledPrompt
-  }
-
-  private static getTweetSpecificRequirements(tweetIndex: number): string {
-    const requirements: string[] = []
-
-    if (tweetIndex === 1) {
-      requirements.push('Debe captar atención (es el primer tweet)')
-    } else if (tweetIndex === 4) {
-      requirements.push('Debe incluir call-to-action o reflexión final')
-    }
-
-    return requirements.join('\n- ')
   }
 
   static truncateContent(content: string, maxLength: number): string {

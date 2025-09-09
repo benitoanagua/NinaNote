@@ -22,7 +22,6 @@ export const useGoogleGenAI = () => {
         data: { textPreview: text.substring(0, 100) + '...' },
       })
 
-      // LLAMADA ACTUALIZADA: sin parámetro de imágenes
       const result = await googleGenAIService.generateThread(text)
 
       logger.success('Thread generation completed successfully', {
@@ -30,7 +29,6 @@ export const useGoogleGenAI = () => {
         data: {
           tweetCount: result.length,
           totalCharacters: result.reduce((sum, t) => sum + t.charCount, 0),
-          // Nota: las imágenes ya no se generan automáticamente
         },
       })
 
@@ -54,95 +52,6 @@ export const useGoogleGenAI = () => {
     }
   }
 
-  const regenerateTweet = async (originalText: string, tweetIndex: number): Promise<string> => {
-    logger.info('Regenerating single tweet', {
-      context: 'useGoogleGenAI',
-      data: { tweetIndex, textLength: originalText.length },
-    })
-
-    try {
-      logger.debug('Calling Google Gemini API for tweet regeneration', {
-        context: 'useGoogleGenAI',
-        data: { tweetIndex, textPreview: originalText.substring(0, 50) + '...' },
-      })
-
-      const result = await googleGenAIService.regenerateTweet(originalText, tweetIndex)
-
-      logger.success('Tweet regeneration completed', {
-        context: 'useGoogleGenAI',
-        data: {
-          tweetIndex,
-          newLength: result.length,
-          originalLength: originalText.length,
-        },
-      })
-
-      return result
-    } catch (e: any) {
-      const appError = handleError(e, 'useGoogleGenAI')
-
-      logger.error('Tweet regeneration failed', {
-        context: 'useGoogleGenAI',
-        data: {
-          error: appError.message,
-          tweetIndex,
-          originalError: e,
-        },
-      })
-
-      throw appError
-    }
-  }
-
-  const checkAvailability = async (): Promise<boolean> => {
-    logger.info('Checking Google Gemini API availability', { context: 'useGoogleGenAI' })
-
-    try {
-      const isAvailable = await googleGenAIService.checkAvailability()
-
-      if (isAvailable) {
-        logger.success('Google Gemini API is available', { context: 'useGoogleGenAI' })
-      } else {
-        logger.warn('Google Gemini API is not available', { context: 'useGoogleGenAI' })
-      }
-
-      return isAvailable
-    } catch (e: any) {
-      const appError = handleError(e, 'useGoogleGenAI')
-
-      logger.error('Failed to check API availability', {
-        context: 'useGoogleGenAI',
-        data: { error: appError.message },
-      })
-
-      return false
-    }
-  }
-
-  const getAvailableModels = async () => {
-    logger.info('Fetching available AI models', { context: 'useGoogleGenAI' })
-
-    try {
-      const models = await googleGenAIService.getAvailableModels()
-
-      logger.success('Available models retrieved', {
-        context: 'useGoogleGenAI',
-        data: { modelCount: models.length },
-      })
-
-      return models
-    } catch (e: any) {
-      const appError = handleError(e, 'useGoogleGenAI')
-
-      logger.error('Failed to get available models', {
-        context: 'useGoogleGenAI',
-        data: { error: appError.message },
-      })
-
-      throw appError
-    }
-  }
-
   const clearError = () => {
     if (error.value) {
       logger.info('Clearing previous error', {
@@ -161,9 +70,6 @@ export const useGoogleGenAI = () => {
 
   return {
     generateThread,
-    regenerateTweet,
-    checkAvailability,
-    getAvailableModels,
     clearError,
     resetState,
     isGenerating,
