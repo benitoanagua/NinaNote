@@ -16,7 +16,6 @@
     "format": "prettier --write src/",
     "generate:theme": "tsx src/plugins/material-theme/cli.ts",
     "postinstall": "tsx src/plugins/material-theme/cli.ts",
-    "predev": "tsx src/plugins/material-theme/cli.ts",
     "prebuild": "tsx src/plugins/material-theme/cli.ts"
   },
   "dependencies": {
@@ -24,6 +23,7 @@
     "@material/material-color-utilities": "^0.3.0",
     "@mozilla/readability": "^0.6.0",
     "@tailwindcss/vite": "^4.1.12",
+    "@vueuse/head": "^2.0.0",
     "pinia": "^3.0.3",
     "tailwindcss": "^4.1.12",
     "vue": "^3.5.18",

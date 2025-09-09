@@ -16,10 +16,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useSEO } from '@/composables/useSEO'
 import { useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
 import UrlInput from '@/components/UrlInput.vue'
 
+useSEO({ path: '/' })
 const router = useRouter()
 const sessionStore = useSessionStore()
 const errorMessage = ref<string>('')

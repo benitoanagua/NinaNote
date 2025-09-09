@@ -90,9 +90,14 @@
 </template>
 
 <script setup lang="ts">
+import { useSEO } from '@/composables/useSEO'
 import { useSessionStore } from '@/stores/session'
 import { useI18n } from 'vue-i18n'
 
+useSEO({
+  title: 'Historial de hilos',
+  path: '/history',
+})
 const sessionStore = useSessionStore()
 const { t } = useI18n()
 

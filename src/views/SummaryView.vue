@@ -93,12 +93,18 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch } from 'vue'
+import { useSEO } from '@/composables/useSEO'
 import { useRoute } from 'vue-router'
 import { useArticleProcessor } from '@/composables/useArticleProcessor'
 import ThreadPreview from '@/components/ThreadPreview.vue'
 import TwitterPublish from '@/components/TwitterPublish.vue'
 import { logger } from '@/utils/logger'
 
+useSEO({
+  title: 'Resumen generado',
+  description: 'Hilo de Twitter generado desde el artículo.',
+  path: '/summary',
+})
 const route = useRoute()
 const {
   tweets,
