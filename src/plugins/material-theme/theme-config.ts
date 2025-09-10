@@ -26,7 +26,7 @@ export const themeConfig: ThemeConfig = {
   contrastLevel: 0,
 
   // Variant of Material Design 3 scheme (use numeric values)
-  variant: 1,
+  variant: 3,
 }
 
 export const seedColor = themeConfig.seedColor

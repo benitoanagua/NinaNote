@@ -11,8 +11,8 @@ export const seo = {
   twitterCard: 'summary_large_image',
   twitterSite: '@BenitoAnagua',
   themeColor: '#29AB87',
-  ogImage: `${SITE_URL}/og-image.png`,
-  twitterImage: `${SITE_URL}/twitter-image.png`,
+  ogImage: `${SITE_URL}/nina-note.jpeg`,
+  twitterImage: `${SITE_URL}/nina-note.jpeg`,
   favicon: `${SITE_URL}/favicon.ico`,
   ogType: 'website',
 }
