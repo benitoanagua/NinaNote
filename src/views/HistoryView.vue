@@ -343,7 +343,28 @@ import { computed } from 'vue'
 import { useSessionStore } from '@/stores/session'
 import { useThreadHistory } from '@/composables/useThreadHistory'
 import { useI18n } from 'vue-i18n'
+import { useSEO } from '@/composables/useSEO'
 import { logger } from '@/utils/logger'
+
+// SEO para la página de historial
+useSEO({
+  path: '/history',
+  title: 'Historial de hilos generados - Nina Note',
+  description:
+    'Revisa y gestiona tu historial de hilos de Twitter generados automáticamente a partir de artículos y editoriales.',
+  structuredData: {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'Historial de Hilos - Nina Note',
+    description: 'Gestión y revisión de hilos de Twitter generados automáticamente',
+    url: window.location.href,
+    isPartOf: {
+      '@type': 'WebApplication',
+      name: 'Nina Note',
+      applicationCategory: 'UtilityApplication',
+    },
+  },
+})
 
 const sessionStore = useSessionStore()
 const threadHistory = useThreadHistory()

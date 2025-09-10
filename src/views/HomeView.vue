@@ -21,7 +21,28 @@ import { useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
 import UrlInput from '@/components/UrlInput.vue'
 
-useSEO({ path: '/' })
+// SEO mejorado para la página principal
+useSEO({
+  path: '/',
+  title: 'Transforma artículos en hilos de Twitter con IA',
+  description:
+    'Convierte editoriales y artículos largos en hilos de Twitter impactantes automáticamente. Solo pega la URL y obtén contenido listo para publicar.',
+  structuredData: {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'Nina Note',
+    applicationCategory: 'UtilityApplication',
+    operatingSystem: 'Web Browser',
+    description: 'Transforma artículos largos en hilos de Twitter impactantes con IA',
+    url: 'https://ninanote.netlify.app',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+  },
+})
+
 const router = useRouter()
 const sessionStore = useSessionStore()
 const errorMessage = ref<string>('')

@@ -194,6 +194,7 @@ import { useArticleProcessor } from '@/composables/useArticleProcessor'
 import ThreadPreview from '@/components/ThreadPreview.vue'
 import { logger } from '@/utils/logger'
 import { isValidImageUrl } from '@/utils/imageUtils'
+import { useSEO } from '@/composables/useSEO'
 
 const route = useRoute()
 const {
@@ -210,6 +211,28 @@ const {
 } = useArticleProcessor()
 
 const showImageDetails = ref(false)
+
+useSEO({
+  path: '/summary',
+  title: 'Resumen del artículo procesado - Nina Note',
+  description:
+    'Vista previa del hilo de Twitter generado automáticamente a partir del artículo. Personaliza y edita los tweets antes de publicar.',
+  structuredData: computed(() => ({
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'Resumen del Artículo Procesado - Nina Note',
+    description: 'Vista previa del hilo de Twitter generado automáticamente a partir del artículo',
+    url: window.location.href,
+    mainEntity: {
+      '@type': 'Article',
+      name: 'Artículo procesado',
+      url: decodedUrl.value,
+      description: articleContent.value
+        ? articleContent.value.substring(0, 160) + '...'
+        : 'Artículo procesado por Nina Note',
+    },
+  })),
+})
 
 // Computed para estadísticas de imágenes
 const imageStats = computed(() => {

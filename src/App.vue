@@ -164,16 +164,28 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useThreadHistory } from '@/composables/useThreadHistory'
 import { useSessionStore } from '@/stores/session'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import TerminalLoader from '@/components/TerminalLoader.vue'
+import { useSEO } from '@/composables/useSEO'
 import { logger } from '@/utils/logger'
+
+// SEO global para la aplicación
+useSEO({
+  structuredData: {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Nina Note',
+    url: 'https://ninanote.netlify.app',
+    logo: 'https://ninanote.netlify.app/logo.png',
+    description: 'Transforma artículos largos en hilos de Twitter impactantes con IA',
+    sameAs: ['https://twitter.com/tu_usuario', 'https://github.com/tu_usuario/nina-note'],
+  },
+})
 
 const sessionStore = useSessionStore()
 const route = useRoute()
-const threadHistory = useThreadHistory()
 const isTerminalLoading = ref(false)
 const isMobileMenuOpen = ref(false)
 const headerRef = ref<HTMLElement | null>(null)
@@ -208,17 +220,6 @@ watch(
   () => route.path,
   () => {
     closeMobileMenu()
-  },
-)
-
-// Podemos mostrar un toast cuando se alcanza el límite
-watch(
-  () => threadHistory.hasReachedLimit,
-  (newValue) => {
-    if (newValue) {
-      logger.info('Daily limit reached', { context: 'App' })
-      // Aquí podrías mostrar un toast o notificación
-    }
   },
 )
 
