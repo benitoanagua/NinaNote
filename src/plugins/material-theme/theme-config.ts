@@ -10,8 +10,6 @@
  * 4: EXPRESSIVE
  * 5: FIDELITY
  * 6: CONTENT
- * 7: RAINBOW
- * 8: FRUIT_SALAD
  */
 
 export interface ThemeConfig {
@@ -28,7 +26,7 @@ export const themeConfig: ThemeConfig = {
   contrastLevel: 0,
 
   // Variant of Material Design 3 scheme (use numeric values)
-  variant: 2, // TONAL_SPOT
+  variant: 1,
 }
 
 export const seedColor = themeConfig.seedColor
@@ -45,8 +43,6 @@ export function getVariantName(variantNumber: number): string {
     4: 'EXPRESSIVE',
     5: 'FIDELITY',
     6: 'CONTENT',
-    7: 'RAINBOW',
-    8: 'FRUIT_SALAD',
   }
   return variantNames[variantNumber] || 'TONAL_SPOT'
 }

@@ -1,21 +1,49 @@
-import {
-  DynamicScheme,
-  themeFromSourceColor,
-  argbFromHex,
-  hexFromArgb,
-} from '@material/material-color-utilities'
 import { writeFileSync, mkdirSync } from 'fs'
 import { dirname, resolve } from 'path'
+import {
+  argbFromHex,
+  hexFromArgb,
+  MaterialDynamicColors,
+  Hct,
+  SchemeTonalSpot,
+  SchemeNeutral,
+  SchemeVibrant,
+  SchemeExpressive,
+  SchemeMonochrome,
+  SchemeContent,
+  SchemeFidelity,
+} from '@material/material-color-utilities'
 import { themeConfig, getVariantName } from './theme-config'
 
 export function getThemeConfig() {
   return themeConfig
 }
 
-function getAllDynamicColors(scheme: DynamicScheme): Record<string, string> {
-  const colors: Record<string, string> = {}
+// Mapeo de nombres de variante a constructores de esquema
+const SCHEME_CONSTRUCTORS: Record<string, any> = {
+  MONOCHROME: SchemeMonochrome,
+  NEUTRAL: SchemeNeutral,
+  TONAL_SPOT: SchemeTonalSpot,
+  VIBRANT: SchemeVibrant,
+  EXPRESSIVE: SchemeExpressive,
+  FIDELITY: SchemeFidelity,
+  CONTENT: SchemeContent,
+}
 
-  const colorProperties = [
+function createScheme(isDark: boolean) {
+  const config = getThemeConfig()
+  const sourceColor = argbFromHex(config.seedColor)
+  const sourceHct = Hct.fromInt(sourceColor)
+
+  // Convertir número de variante a nombre
+  const variantName = getVariantName(config.variant)
+  const SchemeConstructor = SCHEME_CONSTRUCTORS[variantName] || SchemeTonalSpot
+
+  return new SchemeConstructor(sourceHct, isDark, config.contrastLevel)
+}
+
+function extractColors(scheme: any) {
+  const props = [
     'primary',
     'onPrimary',
     'primaryContainer',
@@ -45,39 +73,25 @@ function getAllDynamicColors(scheme: DynamicScheme): Record<string, string> {
     'onSurface',
     'surfaceVariant',
     'onSurfaceVariant',
-    'inverseSurface',
-    'inverseOnSurface',
     'outline',
     'outlineVariant',
     'shadow',
     'scrim',
-    'surfaceTint',
+    'inverseSurface',
+    'inverseOnSurface',
     'inversePrimary',
-    'primaryFixed',
-    'primaryFixedDim',
-    'onPrimaryFixed',
-    'onPrimaryFixedVariant',
-    'secondaryFixed',
-    'secondaryFixedDim',
-    'onSecondaryFixed',
-    'onSecondaryFixedVariant',
-    'tertiaryFixed',
-    'tertiaryFixedDim',
-    'onTertiaryFixed',
-    'onTertiaryFixedVariant',
   ]
 
-  colorProperties.forEach((property) => {
+  const colors: Record<string, string> = {}
+  for (const prop of props) {
     try {
-      const colorValue = (scheme as any)[property]
-      if (typeof colorValue === 'number') {
-        colors[property] = hexFromArgb(colorValue)
-      }
-    } catch (error) {
-      console.warn(`Could not get color property: ${property}`, error)
+      const color = (MaterialDynamicColors as any)[prop]?.getArgb(scheme)
+      colors[prop] = hexFromArgb(color)
+    } catch {
+      colors[prop] = '#FF00FF' // fallback
+      console.warn(`Could not extract color property: ${prop}`)
     }
-  })
-
+  }
   return colors
 }
 
@@ -91,46 +105,29 @@ export function generateThemeFiles(root: string, outputDir: string): void {
     console.log(`   • Variant: ${variantName} (${config.variant})`)
     console.log(`   • Contrast Level: ${config.contrastLevel}`)
 
-    const sourceColorArgb = argbFromHex(config.seedColor)
-    const theme = themeFromSourceColor(sourceColorArgb)
+    const lightScheme = createScheme(false)
+    const darkScheme = createScheme(true)
 
-    // Usar el número de variante directamente
-    const options = {
-      sourceColorArgb,
-      variant: config.variant,
-      contrastLevel: config.contrastLevel,
-      primaryPalette: theme.palettes.primary,
-      secondaryPalette: theme.palettes.secondary,
-      tertiaryPalette: theme.palettes.tertiary,
-      neutralPalette: theme.palettes.neutral,
-      neutralVariantPalette: theme.palettes.neutralVariant,
-    }
+    const lightColors = extractColors(lightScheme)
+    const darkColors = extractColors(darkScheme)
 
-    const lightScheme = new DynamicScheme({ ...options, isDark: false })
-    const darkScheme = new DynamicScheme({ ...options, isDark: true })
-
-    const lightColors = getAllDynamicColors(lightScheme)
-    const darkColors = getAllDynamicColors(darkScheme)
-
-    // Generar SOLO CSS para Tailwind (sin JSON)
     const cssContent = `@theme {
 ${Object.entries(lightColors)
-  .map(([key, value]) => `  --color-${key}: ${value};`)
+  .map(([k, v]) => `  --color-${k}: ${v};`)
   .join('\n')}
 }
 
 [data-theme="dark"] {
 ${Object.entries(darkColors)
-  .map(([key, value]) => `  --color-${key}: ${value};`)
+  .map(([k, v]) => `  --color-${k}: ${v};`)
   .join('\n')}
-}
-`
+}`
 
     // Crear directorio si no existe
     const fullPath = resolve(root, outputDir)
     mkdirSync(dirname(fullPath), { recursive: true })
 
-    // Escribir SOLO archivo CSS (sin JSON)
+    // Escribir archivo CSS
     writeFileSync(resolve(fullPath, 'material-theme.css'), cssContent)
 
     console.log('✅ Theme generated successfully at:', `${outputDir}/material-theme.css`)
