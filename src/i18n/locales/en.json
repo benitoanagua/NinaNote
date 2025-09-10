@@ -25,7 +25,8 @@
   "navigation": {
     "home": "Home",
     "history": "History",
-    "settings": "Settings"
+    "settings": "Settings",
+    "github": "GitHub"
   },
 
   "home": {

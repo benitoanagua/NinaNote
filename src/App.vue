@@ -62,23 +62,8 @@
             </button>
           </div>
 
-          <!-- Sección central: Navegación (escritorio) -->
-          <nav class="hidden md:flex items-center space-x-6">
-            <router-link
-              to="/"
-              class="text-onSurfaceVariant hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              :class="{ 'text-primary font-semibold': $route.name === 'home' }"
-            >
-              {{ $t('navigation.home') }}
-            </router-link>
-            <router-link
-              to="/history"
-              class="text-onSurfaceVariant hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              :class="{ 'text-primary font-semibold': $route.name === 'history' }"
-            >
-              {{ $t('navigation.history') }}
-            </router-link>
-          </nav>
+          <!-- Navegación desktop -->
+          <AppNavigation />
 
           <!-- Sección derecha: Controles (escritorio) -->
           <div class="hidden md:flex items-center gap-4">
@@ -103,32 +88,7 @@
           >
             <div class="px-4 space-y-4">
               <!-- Navegación móvil -->
-              <div class="space-y-2">
-                <router-link
-                  to="/"
-                  @click="closeMobileMenu"
-                  class="block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                  :class="{
-                    'text-primary bg-primaryContainer/20': $route.name === 'home',
-                    'text-onSurfaceVariant hover:text-primary hover:bg-surfaceContainerHighest':
-                      $route.name !== 'home',
-                  }"
-                >
-                  {{ $t('navigation.home') }}
-                </router-link>
-                <router-link
-                  to="/history"
-                  @click="closeMobileMenu"
-                  class="block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                  :class="{
-                    'text-primary bg-primaryContainer/20': $route.name === 'history',
-                    'text-onSurfaceVariant hover:text-primary hover:bg-surfaceContainerHighest':
-                      $route.name !== 'history',
-                  }"
-                >
-                  {{ $t('navigation.history') }}
-                </router-link>
-              </div>
+              <MobileNavigation @close="closeMobileMenu" />
 
               <!-- Controles móviles -->
               <div class="pt-4 border-t border-outlineVariant/50">
@@ -168,6 +128,8 @@ import { useSessionStore } from '@/stores/session'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import TerminalLoader from '@/components/TerminalLoader.vue'
+import AppNavigation from '@/components/AppNavigation.vue'
+import MobileNavigation from '@/components/MobileNavigation.vue'
 import { useSEO } from '@/composables/useSEO'
 import { logger } from '@/utils/logger'
 
@@ -180,7 +142,7 @@ useSEO({
     url: 'https://ninanote.netlify.app',
     logo: 'https://ninanote.netlify.app/logo.png',
     description: 'Transforma artículos largos en hilos de Twitter impactantes con IA',
-    sameAs: ['https://twitter.com/tu_usuario', 'https://github.com/tu_usuario/nina-note'],
+    sameAs: ['https://github.com/benitoanagua/NinaNote'],
   },
 })
 
@@ -245,43 +207,3 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleEscapeKey)
 })
 </script>
-
-<style>
-/* Estilos para enlaces activos */
-.router-link-active {
-  --apply: text-primary;
-}
-
-/* Transiciones suaves */
-.transition-all {
-  transition: all 0.2s ease-in-out;
-}
-
-/* Mejoras de accesibilidad para focus */
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: 0.25rem;
-}
-
-/* Mejoras para dispositivos táctiles */
-@media (max-width: 768px) {
-  .min-h-screen {
-    min-height: 100vh;
-    min-height: 100dvh; /* Soporte para navegadores modernos */
-  }
-}
-
-/* Prevenir flashes en transiciones */
-.mobile-menu-transition {
-  transition:
-    opacity 0.15s ease-out,
-    transform 0.15s ease-out;
-}
-
-/* Mejorar rendimiento de animaciones */
-.mobile-menu-content {
-  will-change: transform, opacity;
-}
-</style>
