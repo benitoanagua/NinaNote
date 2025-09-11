@@ -1,6 +1,6 @@
 import { useHead } from '@vueuse/head'
 import { seo, SITE_URL } from '@/config/seo'
-import { computed } from 'vue'
+import { computed, unref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 // Define el tipo para structured data
@@ -79,7 +79,7 @@ export function useSEO({
     ? [
         {
           type: 'application/ld+json',
-          innerHTML: JSON.stringify(structuredData),
+          innerHTML: JSON.stringify(unref(structuredData)),
         },
       ]
     : []

@@ -5,6 +5,10 @@
     "tagline": "Convierte artículos largos en hilos de Twitter impactantes en segundos"
   },
 
+  "seo": {
+    "title": "Nina Note - Extrae la esencia de tus editoriales"
+  },
+
   "common": {
     "loading": "Cargando...",
     "error": "Error",
@@ -84,6 +88,7 @@
     "title": "Opciones de Exportación",
     "subtitle": "Exporta tu hilo para publicarlo",
     "copy": "Copiar al Portapapeles",
+    "copyTweet": "Copiar tweet",
     "success": {
       "copied": "Hilo copiado. Pégalo donde necesites"
     },

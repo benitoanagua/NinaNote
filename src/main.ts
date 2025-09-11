@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import { createHead } from '@vueuse/head'
 import App from './App.vue'
 import router from './router'
 import i18n from './i18n'
@@ -15,7 +16,10 @@ const initializeApp = async () => {
   logger.info('🔥 Nina Note - Starting up...')
 
   const app = createApp(App)
+  const head = createHead()
 
+  // Usar todos los plugins en el orden correcto
+  app.use(head)
   app.use(i18n)
   app.use(createPinia())
   app.use(router)

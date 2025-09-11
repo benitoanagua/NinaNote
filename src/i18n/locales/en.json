@@ -5,6 +5,10 @@
     "tagline": "Convert long articles into impactful Twitter threads in seconds"
   },
 
+  "seo": {
+    "title": "Nina Note - Extract the essence of your editorials"
+  },
+
   "common": {
     "loading": "Loading...",
     "error": "Error",
@@ -84,6 +88,7 @@
     "title": "Export Options",
     "subtitle": "Export your thread for publishing",
     "copy": "Copy to Clipboard",
+    "copyTweet": "Copy tweet",
     "success": {
       "copied": "Thread copied. Paste it wherever you need"
     },
